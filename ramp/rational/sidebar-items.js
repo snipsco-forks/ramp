@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Rational","An arbitrary-precision rational number."]]});

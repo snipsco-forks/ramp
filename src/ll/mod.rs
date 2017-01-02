@@ -90,6 +90,7 @@ pub mod pow;
 pub mod base;
 pub mod limb;
 pub mod limb_ptr;
+pub mod modpow;
 use self::limb::Limb;
 
 use ll::limb_ptr::{Limbs, LimbsMut};
@@ -733,4 +734,5 @@ mod test {
 
         assert_eq!(pos, Limb::BITS as u32 + 8);
     }
+
 }

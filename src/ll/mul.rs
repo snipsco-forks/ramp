@@ -462,7 +462,7 @@ pub unsafe fn sqr(wp: LimbsMut, xp: Limbs, xs: i32) {
 }
 
 #[inline(always)]
-unsafe fn sqr_rec(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
+pub unsafe fn sqr_rec(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
     if xs < TOOM22_THRESHOLD {
         mul_basecase(wp, xp, xs, xp, xs);
     } else {

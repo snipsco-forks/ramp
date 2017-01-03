@@ -3214,8 +3214,8 @@ impl Int {
         debug_assert!(modulus > self);
         let mut result = Self::with_capacity(modulus.abs_size() as u32);
         unsafe {
-            ll::modpow::modpow(result.limbs_uninit(), modulus.limbs(), modulus.abs_size(), self.limbs(), self.abs_size(), exp.limbs(), exp.abs_size());
             result.size = modulus.abs_size();
+            ll::modpow::modpow(result.limbs_uninit(), modulus.limbs(), modulus.abs_size(), self.limbs(), self.abs_size(), exp.limbs(), exp.abs_size());
             result.normalize();
         }
         result

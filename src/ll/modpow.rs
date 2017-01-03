@@ -20,26 +20,47 @@ use ll::limb_ptr::{Limbs, LimbsMut};
 
 // w <- a^b [m]
 pub unsafe fn modpow(mut wp:LimbsMut, mp:Limbs, mn:i32, ap:Limbs, an: i32, bp:Limbs, bn: i32) {
+    let k = 7;
+
     let mut tmp = mem::TmpAllocator::new();
+    let scratch = tmp.allocate(2*mn as usize); // for temp muls
+    let scratch_q = tmp.allocate(mn as usize + 1); // for divrem quotient
 
-    // a mn-sized copy of ap,an
-    let base = tmp.allocate(mn as usize);
-    ll::copy_incr(ap, base, an);
+    // base ^ 0..2^(k-1)
+    let mut table = Vec::with_capacity(1 << k);
+    let mut pow_0 = tmp.allocate(mn as usize);
+    *pow_0 = Limb(1);
+    let pow_1 = tmp.allocate(mn as usize);
+    ll::copy_incr(ap, pow_1, an);
+    table.push(pow_0);
+    table.push(pow_1);
+    for _ in 2..(1 << k) {
+        let next = tmp.allocate(mn as usize);
+        {
+            let previous = table.last().unwrap();
+            ll::mul::mul(scratch, pow_1.as_const(), mn, previous.as_const(), mn);
+            ll::div::divrem(scratch_q, next, scratch.as_const(), 2*mn, mp, mn);
+        }
+        table.push(next);
+    }
 
-    ll::copy_incr(ap, wp, an);
-
-    let scratch = tmp.allocate(2*mn as usize);
-
-    // this one is never used (quotient in modulo ops)
-    let scratch_q = tmp.allocate(mn as usize + 1);
-
+    *wp = Limb(1);
     let exp_bit_length = ll::base::num_base_digits(bp, bn, 2) as usize;
-
-    for i in (0..exp_bit_length-1).rev() {
-        ll::mul::sqr(scratch, wp.as_const(), mn);
-        ll::div::divrem(scratch_q, wp, scratch.as_const(), 2*mn, mp, mn);
-        if (*(bp.offset((i/Limb::BITS) as isize)) >> (i%Limb::BITS)) & Limb(1) == Limb(1) {
-            ll::mul::mul(scratch, base.as_const(), mn, wp.as_const(), mn);
+    let block_count = (exp_bit_length + k - 1) / k;
+    for i in (0..block_count).rev() {
+        let mut block_value: usize = 0;
+        for j in 0..k {
+            let p = i*k+j;
+            if p < exp_bit_length && (*(bp.offset((p/Limb::BITS) as isize)) >> (p%Limb::BITS)) & Limb(1) == Limb(1) {
+                block_value |= 1 << j;
+            }
+        }
+        for _ in 0..k {
+            ll::mul::sqr(scratch, wp.as_const(), mn);
+            ll::div::divrem(scratch_q, wp, scratch.as_const(), 2*mn, mp, mn);
+        }
+        if block_value != 0 {
+            ll::mul::mul(scratch, table[block_value].as_const(), mn, wp.as_const(), mn);
             ll::div::divrem(scratch_q, wp, scratch.as_const(), 2*mn, mp, mn);
         }
     }

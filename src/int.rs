@@ -12,6 +12,9 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
+#[path="montgomery.rs"]
+mod montgomery;
+
 use std;
 use std::cmp::{
     Ordering,
@@ -41,6 +44,7 @@ use ll::limb_ptr::{Limbs, LimbsMut};
 use alloc::raw_vec::RawVec;
 
 use traits::DivRem;
+
 
 /**
  * An arbitrary-precision signed integer.
@@ -3220,6 +3224,28 @@ impl Int {
         }
         result
     }
+
+    pub fn modpow_by_montgomery(&self, exp:&Int, modulus:&Int) -> Int {
+        debug_assert!(self.sign() == 1);
+        debug_assert!(modulus.sign() == 1);
+        debug_assert!(exp.sign() == 1);
+        debug_assert!(modulus > self);
+        debug_assert!(modulus.bit(0)); // modulus must be odd
+
+        let r_limbs = modulus.abs_size() as u32;
+        let m = montgomery::Montgomery::new(modulus);
+        let mut result = m.to_montgomery(&Self::one());
+        let ma = m.to_montgomery(self);
+        unsafe {
+            let mut a = Self::with_capacity(r_limbs);
+            a.size = r_limbs as i32;
+            ll::copy_incr(ma.limbs(), a.limbs_uninit(), ma.abs_size());
+            result.size = r_limbs as i32;
+            ll::modpow::modpow_by_montgomery(result.limbs_uninit(), r_limbs as i32, modulus.limbs(), m.modulus_quote.limbs(), a.limbs(), exp.limbs(), exp.abs_size());
+            result.normalize();
+        }
+        m.to_natural(&result)
+    }
 }
 
 
@@ -3878,7 +3904,6 @@ mod test {
             let mut x = Int::one();
             for e in 0..512 {
                 let a = &b.pow(e);
-                // println!("b={}, e={}, a={}, x={}", &b, &e, &a, &x);
                 assert_mp_eq!(a.clone(), x.clone());
                 x = &x * &b
             }
@@ -4552,10 +4577,22 @@ mod test {
             assert_mp_eq!(val.clone(), a.clone());
         }
     }
+    #[test]
+    fn test_montgomery() {
+        let m:Int = "4349330786055998253486590232462401".parse().unwrap();
+        let ma = montgomery::Montgomery::new(&m);
+        for i in &[ "15", "9330786055998253486590" ] {
+            let it = i.parse().unwrap();
+            let mo = ma.to_montgomery(&it);
+            let back = ma.to_natural(&mo);
+            assert_eq!(it, back);
+        }
+    }
 
     #[test]
     fn test_modpow() {
         let cases = [
+            ("2", "10", "1009", "15"),
             ("2", "10", "1000", "24"),
             ("1", "4349330786055998253486590232462", "4349330786055998253486590232462401", "1"),
             ("15", "1", "4349330786055998253486590232462401", "15"),
@@ -4571,6 +4608,9 @@ mod test {
             let m : Int = m.parse().unwrap();
             let x : Int = x.parse().unwrap();
             assert_eq!(b.modpow(&e,&m), x);
+            if !m.is_even() {
+                assert_eq!(b.modpow_by_montgomery(&e,&m), x);
+            }
         }
     }
 

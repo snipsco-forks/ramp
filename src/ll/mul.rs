@@ -227,7 +227,7 @@ unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut 
 
 // Helper fn
 #[inline(always)]
-unsafe fn mul_rec(wp: LimbsMut,
+pub unsafe fn mul_rec(wp: LimbsMut,
            xp: Limbs, xs: i32,
            yp: Limbs, ys: i32,
            scratch: LimbsMut) {

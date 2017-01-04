@@ -20,10 +20,14 @@ use ll::limb_ptr::{Limbs, LimbsMut};
 
 // w <- a^b [m] 
 pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Limbs, a:Limbs, bp:Limbs, bn: i32) {
-    let k = 3;
+    let k = 7;
 
     let mut tmp = mem::TmpAllocator::new();
-    let scratch = tmp.allocate(2*r_limbs as usize); // for temp muls
+
+    let scratch_t = tmp.allocate(2*r_limbs as usize);
+    let scratch_m_x = tmp.allocate(2*r_limbs as usize);
+    let scratch_mn = tmp.allocate(2*r_limbs as usize);
+    let scratch_mul = tmp.allocate(2*r_limbs as usize);
 
     // base ^ 0..2^(k-1)
     let mut table = Vec::with_capacity(1 << k);
@@ -37,7 +41,7 @@ pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Lim
         let next = tmp.allocate(r_limbs as usize);
         {
             let previous = table.last().unwrap();
-            montgomery_mul(next, r_limbs, pow_1.as_const(), previous.as_const(), n, nquote);
+            montgomery_mul(next, r_limbs, pow_1.as_const(), previous.as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
         }
         table.push(next);
     }
@@ -53,12 +57,10 @@ pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Lim
             }
         }
         for _ in 0..k {
-            montgomery_mul(scratch, r_limbs, wp.as_const(), wp.as_const(), n, nquote);
-            ll::copy_incr(scratch.as_const(), wp, r_limbs);
+            montgomery_sqr(wp, r_limbs, wp.as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
         }
         if block_value != 0 {
-            montgomery_mul(scratch, r_limbs, wp.as_const(), table[block_value].as_const(), n, nquote);
-            ll::copy_incr(scratch.as_const(), wp, r_limbs);
+            montgomery_mul(wp, r_limbs, wp.as_const(), table[block_value].as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
         }
     }
 }
@@ -74,30 +76,46 @@ pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Lim
 //     }).collect()
 // }
 
-unsafe fn montgomery_mul(wp:LimbsMut, r_limbs:i32, a:Limbs, b:Limbs, n:Limbs, nquote:Limbs) {
-    let mut tmp = mem::TmpAllocator::new();
-    let scratch_t = tmp.allocate(2*r_limbs as usize);
-    let scratch_m = tmp.allocate(2*r_limbs as usize);
-    let scratch_mn = tmp.allocate(2*r_limbs as usize);
-    let scratch_x = tmp.allocate(2*r_limbs as usize);
-
+#[inline]
+unsafe fn montgomery_mul(wp:LimbsMut, r_limbs:i32, a:Limbs, b:Limbs, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
     // t <- a*b
-    ll::mul::mul(scratch_t, a, r_limbs, b, r_limbs);
-    // a*b % R is a*b [r_limbs]
+    ll::mul::mul_rec(scratch_t, a, r_limbs, b, r_limbs, scratch_mul);
 
+    montgomery_redc(wp, r_limbs, n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul)
+}
+
+#[inline]
+unsafe fn montgomery_sqr(wp:LimbsMut, r_limbs:i32, a:Limbs, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
+    // t <- a*b
+    ll::mul::sqr_rec(scratch_t, a, r_limbs, scratch_mul);
+
+    montgomery_redc(wp, r_limbs, n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul)
+}
+
+#[inline]
+unsafe fn montgomery_redc(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
     // M <- (a*b % R) N'
-    ll::mul::mul(scratch_m, scratch_t.as_const(), r_limbs, nquote, r_limbs);
+    lomul(scratch_m_x, r_limbs as isize, scratch_t.as_const(), nquote);
 
     // MN <- M%R N
-    ll::mul::mul(scratch_mn, scratch_m.as_const(), r_limbs, n, r_limbs);
+    ll::mul::mul_rec(scratch_mn, scratch_m_x.as_const(), r_limbs, n, r_limbs, scratch_mul);
 
     // X <- T+MN
-    ll::addsub::add_n(scratch_x, scratch_t.as_const(), scratch_mn.as_const(), 2*r_limbs);
+    ll::addsub::add_n(scratch_m_x, scratch_t.as_const(), scratch_mn.as_const(), 2*r_limbs);
 
-    if ll::cmp(scratch_x.as_const().offset(r_limbs as isize), n, r_limbs) != ::std::cmp::Ordering::Less {
-        ll::addsub::sub_n(wp, scratch_x.offset(r_limbs as isize).as_const(), n, r_limbs);
-    } else {
-        ll::copy_incr(scratch_x.offset(r_limbs as isize).as_const(), wp, r_limbs);
+    // w <- X/R
+    ll::copy_incr(scratch_m_x.offset(r_limbs as isize).as_const(), wp, r_limbs);
+
+    if ll::cmp(wp.as_const(), n, r_limbs) != ::std::cmp::Ordering::Less {
+        ll::addsub::sub_n(wp, wp.as_const(), n, r_limbs);
+    }
+}
+
+#[inline]
+unsafe fn lomul(wp:LimbsMut, r_limbs:isize, a:Limbs, b:Limbs) {
+    ll::mul::mul_1(wp, a, r_limbs as i32, *b);
+    for i in 1isize..r_limbs as isize {
+        ll::mul::addmul_1(wp.offset(i), a, (r_limbs-i) as i32, *b.offset(i));
     }
 }
 

@@ -908,6 +908,35 @@ fn from_str_decimal(a: BigIntStr) {
     assert_eq!(sr2, ar);
 }
 
+#[quickcheck]
+fn montgomery_cvt(a: BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::montgomery;
+    let a = a.parse().0;
+    let m:Int = m.parse().0;
+    if a < 0 || m < 0 || a >= m || m.is_even() {
+        return TestResult::discard()
+    }
+    let montgomery = montgomery::Modulus::new(&m);
+    TestResult::from_bool(montgomery.to_natural(&montgomery.to_montgomery(&a)) == a)
+}
+
+#[quickcheck]
+fn montgomery_mul(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::montgomery;
+    let a = a.parse().0;
+    let b = b.parse().0;
+    let m:Int = m.parse().0;
+    if a < 0 || b < 0 || m < 0 || a >= m || b >= m || m.is_even() {
+        return TestResult::discard()
+    }
+    let montgomery = montgomery::Modulus::new(&m);
+    let abar = montgomery.to_montgomery(&a);
+    let bbar = montgomery.to_montgomery(&b);
+    let ab_bar = montgomery.mul(&abar, &bbar);
+    let ab = montgomery.to_natural(&ab_bar);
+    TestResult::from_bool(ab == a*b % &m)
+}
+
 mod format {
     use ::BigIntStr;
 

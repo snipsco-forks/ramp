@@ -40,6 +40,3 @@ num-integer = "*"
 quickcheck = "0.4"
 quickcheck_macros = "0.4"
 
-[replace]
-"quickcheck_macros:0.4.0" = { git = "https://github.com/BurntSushi/quickcheck" }
-

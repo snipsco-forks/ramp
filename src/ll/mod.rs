@@ -90,7 +90,7 @@ pub mod pow;
 pub mod base;
 pub mod limb;
 pub mod limb_ptr;
-pub mod modpow;
+pub mod montgomery;
 use self::limb::Limb;
 
 use ll::limb_ptr::{Limbs, LimbsMut};

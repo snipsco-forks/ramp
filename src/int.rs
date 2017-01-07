@@ -13,7 +13,7 @@
 //    limitations under the License.
 
 #[path="montgomery.rs"]
-mod montgomery;
+pub mod montgomery;
 
 use std;
 use std::cmp::{
@@ -3216,35 +3216,19 @@ impl Int {
         debug_assert!(modulus.sign() == 1);
         debug_assert!(exp.sign() == 1);
         debug_assert!(modulus > self);
+        if !modulus.is_even() {
+            let mont = montgomery::Modulus::new(modulus);
+            let base = mont.to_montgomery(self);
+            let result = mont.pow(&base, &exp);
+            return mont.to_natural(&result)
+        }
         let mut result = Self::with_capacity(modulus.abs_size() as u32);
         unsafe {
             result.size = modulus.abs_size();
-            ll::modpow::modpow(result.limbs_uninit(), modulus.limbs(), modulus.abs_size(), self.limbs(), self.abs_size(), exp.limbs(), exp.abs_size());
+            ll::montgomery::modpow(result.limbs_uninit(), modulus.limbs(), modulus.abs_size(), self.limbs(), self.abs_size(), exp.limbs(), exp.abs_size());
             result.normalize();
         }
         result
-    }
-
-    pub fn modpow_by_montgomery(&self, exp:&Int, modulus:&Int) -> Int {
-        debug_assert!(self.sign() == 1);
-        debug_assert!(modulus.sign() == 1);
-        debug_assert!(exp.sign() == 1);
-        debug_assert!(modulus > self);
-        debug_assert!(modulus.bit(0)); // modulus must be odd
-
-        let r_limbs = modulus.abs_size() as u32;
-        let m = montgomery::Montgomery::new(modulus);
-        let mut result = m.to_montgomery(&Self::one());
-        let ma = m.to_montgomery(self);
-        unsafe {
-            let mut a = Self::with_capacity(r_limbs);
-            a.size = r_limbs as i32;
-            ll::copy_incr(ma.limbs(), a.limbs_uninit(), ma.abs_size());
-            result.size = r_limbs as i32;
-            ll::modpow::modpow_by_montgomery(result.limbs_uninit(), r_limbs as i32, modulus.limbs(), m.modulus_quote.limbs(), a.limbs(), exp.limbs(), exp.abs_size());
-            result.normalize();
-        }
-        m.to_natural(&result)
     }
 }
 
@@ -4578,14 +4562,52 @@ mod test {
         }
     }
     #[test]
-    fn test_montgomery() {
-        let m:Int = "4349330786055998253486590232462401".parse().unwrap();
-        let ma = montgomery::Montgomery::new(&m);
-        for i in &[ "15", "9330786055998253486590" ] {
+    fn test_montgomery_conversion() {
+        for &(i,m) in &[
+                ("1", "1009"),
+                ("15", "1009"),
+                ("9330786055998253486590", "4349330786055998253486590232462401") ] {
+            let modulus = m.parse().unwrap();
+            let ma = montgomery::Modulus::new(&modulus);
             let it = i.parse().unwrap();
             let mo = ma.to_montgomery(&it);
             let back = ma.to_natural(&mo);
             assert_eq!(it, back);
+        }
+    }
+
+    #[test]
+    fn test_montmul() {
+        let cases = [
+            ("1", "2", "13", "2"),
+            ("1", "1", "13", "1"),
+            ("7", "7", "13", "10"),
+            ("1", "1", "1009", "1"),
+            ("2", "10", "1009", "20"),
+            ("15", "1", "4349330786055998253486590232462401", "15"),
+            ("148677972634832330983979593310074301486537017973460461278300587514468301043894574906886127642530475786889672304776052879927627556769456140664043088700743909632312483413393134504352834240399191134336344285483935856491230340093391784574980688823380828143810804684752914935441384845195613674104960646037368551517",
+            "158741574437007245654463598139927898730476924736461654463975966787719309357536545869203069369466212089132653564188443272208127277664424448947476335413293018778018615899291704693105620242763173357203898195318179150836424196645745308205164116144020613415407736216097185962171301808761138424668335445923774195463",
+            "446397596678771930935753654586920306936946621208913265356418844327220812727766442444894747633541329301877801861589929170469310562024276317335720389819531817915083642419664574530820516411614402061341540773621609718596217130180876113842466833544592377419546315874157443700724565446359813992789873047692473646165446397596678771930935753654586920306936946621208913265356418844327220812727766442444894747633541329301877801861589929170469310562045923774195463",
+            "15733033542428556326610775226428250291950090984377467644096837926072\
+            98553857572965450727431838091748906310425930542328045644280094594289\
+            52380420588404540083723320848855612172087517363909606183916778041064\
+            11997952939978862543172484483575568826983703005515400230343351224994\
+            85403291437917132468481025327704901371719125205664144192914895118949\
+            25716605685210349843822514310138216212323303683754146084454361295646\
+            557462263542138176646203699553393662651092450")
+        ];
+        for &(a, b, m, x) in cases.iter() {
+            let m : Int = m.parse().unwrap();
+            let mont = montgomery::Modulus::new(&m);
+            let a : Int = a.parse().unwrap();
+            let b : Int = b.parse().unwrap();
+            let ma = mont.to_montgomery(&a);
+            let mb = mont.to_montgomery(&b);
+            let ab = mont.to_natural(&mont.mul(&ma, &mb));
+            let ba = mont.to_natural(&mont.mul(&mb, &ma));
+            let x : Int = x.parse().unwrap();
+            assert_eq!(ab, x);
+            assert_eq!(ba, x);
         }
     }
 
@@ -4608,9 +4630,6 @@ mod test {
             let m : Int = m.parse().unwrap();
             let x : Int = x.parse().unwrap();
             assert_eq!(b.modpow(&e,&m), x);
-            if !m.is_even() {
-                assert_eq!(b.modpow_by_montgomery(&e,&m), x);
-            }
         }
     }
 

@@ -19,14 +19,13 @@ use mem;
 use ll::limb_ptr::{Limbs, LimbsMut};
 
 // w <- a^b [m] 
-pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Limbs, a:Limbs, bp:Limbs, bn: i32) {
-    let k = 7;
+pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, a:Limbs, bp:Limbs, bn: i32) {
+    let k = 6;
+    let Limb(n0) = *n;
+    let nquote0 = 0usize.wrapping_sub(single_limb_montgomery_inverse(n0 as _));
 
     let mut tmp = mem::TmpAllocator::new();
-
-    let scratch_t = tmp.allocate(2*r_limbs as usize);
-    let scratch_m_x = tmp.allocate(2*r_limbs as usize);
-    let scratch_mn = tmp.allocate(2*r_limbs as usize);
+    let t = tmp.allocate((2*r_limbs + 1) as usize);
     let scratch_mul = tmp.allocate(2*r_limbs as usize);
 
     // base ^ 0..2^(k-1)
@@ -41,7 +40,7 @@ pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Lim
         let next = tmp.allocate(r_limbs as usize);
         {
             let previous = table.last().unwrap();
-            montgomery_mul(next, r_limbs, pow_1.as_const(), previous.as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
+            montgomery_mul(next, r_limbs, pow_1.as_const(), previous.as_const(), n, nquote0, t, scratch_mul);
         }
         table.push(next);
     }
@@ -57,65 +56,49 @@ pub unsafe fn modpow_by_montgomery(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Lim
             }
         }
         for _ in 0..k {
-            montgomery_sqr(wp, r_limbs, wp.as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
+            montgomery_sqr(wp, r_limbs, wp.as_const(), n, nquote0, t, scratch_mul);
         }
         if block_value != 0 {
-            montgomery_mul(wp, r_limbs, wp.as_const(), table[block_value].as_const(), n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul);
+            montgomery_mul(wp, r_limbs, wp.as_const(), table[block_value].as_const(), n, nquote0, t, scratch_mul);
         }
     }
 }
 
-// unsafe fn d(a:Limbs, s:i32) -> String{
-//     (0..s).rev().map(|l| {
-//         let Limb(limb) = *a.offset(l as isize);
-//         if limb == 0 {
-//             "".to_string()
-//         } else {
-//             format!(" {:x}", limb)
-//         }
-//     }).collect()
-// }
-
 #[inline]
-unsafe fn montgomery_mul(wp:LimbsMut, r_limbs:i32, a:Limbs, b:Limbs, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
-    // t <- a*b
-    ll::mul::mul_rec(scratch_t, a, r_limbs, b, r_limbs, scratch_mul);
-
-    montgomery_redc(wp, r_limbs, n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul)
+unsafe fn montgomery_mul(wp:LimbsMut, r_limbs:i32, a:Limbs, b:Limbs, n:Limbs, nquote0:usize, t:LimbsMut, scratch_mul:LimbsMut) {
+    ll::mul::mul_rec(t, a, r_limbs, b, r_limbs, scratch_mul);
+    montgomery_redc(wp, r_limbs, n, nquote0, t)
 }
 
 #[inline]
-unsafe fn montgomery_sqr(wp:LimbsMut, r_limbs:i32, a:Limbs, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
-    // t <- a*b
-    ll::mul::sqr_rec(scratch_t, a, r_limbs, scratch_mul);
-
-    montgomery_redc(wp, r_limbs, n, nquote, scratch_t, scratch_m_x, scratch_mn, scratch_mul)
+unsafe fn montgomery_sqr(wp:LimbsMut, r_limbs:i32, a:Limbs, n:Limbs, nquote0:usize, t:LimbsMut, scratch_mul:LimbsMut) {
+    ll::mul::sqr_rec(t, a, r_limbs, scratch_mul);
+    montgomery_redc(wp, r_limbs, n, nquote0, t)
 }
 
 #[inline]
-unsafe fn montgomery_redc(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote:Limbs, scratch_t:LimbsMut, scratch_m_x:LimbsMut, scratch_mn:LimbsMut, scratch_mul:LimbsMut) {
-    // M <- (a*b % R) N'
-    lomul(scratch_m_x, r_limbs as isize, scratch_t.as_const(), nquote);
-
-    // MN <- M%R N
-    ll::mul::mul_rec(scratch_mn, scratch_m_x.as_const(), r_limbs, n, r_limbs, scratch_mul);
-
-    // X <- T+MN
-    ll::addsub::add_n(scratch_m_x, scratch_t.as_const(), scratch_mn.as_const(), 2*r_limbs);
-
-    // w <- X/R
-    ll::copy_incr(scratch_m_x.offset(r_limbs as isize).as_const(), wp, r_limbs);
-
-    if ll::cmp(wp.as_const(), n, r_limbs) != ::std::cmp::Ordering::Less {
-        ll::addsub::sub_n(wp, wp.as_const(), n, r_limbs);
+pub unsafe fn montgomery_redc(wp:LimbsMut, r_limbs:i32, n:Limbs, nquote0:usize, t:LimbsMut) {
+    let mut carry = 0;
+    for i in 0..r_limbs {
+        carry = 0;
+        let m = (*t.offset(i as _)).0.wrapping_mul(nquote0 as _);
+        for j in 0..r_limbs {
+            let (h_mnj, l_mnj) = Limb(m).mul_hilo(*(n.offset(j as _)));
+            let (s,c1) = t.offset((i+j) as _).add_overflow(l_mnj);
+            let (s,c2) = s.add_overflow(Limb(carry));
+            carry = c1 as ll::limb::BaseInt + c2 as ll::limb::BaseInt + h_mnj.0;
+            *t.offset((i+j) as _) = s;
+        }
+        for j in (i+r_limbs)..(2*r_limbs) {
+            let (s,c) = t.offset(j as _).add_overflow(Limb(carry));
+            carry = c as _;
+            *t.offset(j as _) = s;
+        }
     }
-}
-
-#[inline]
-unsafe fn lomul(wp:LimbsMut, r_limbs:isize, a:Limbs, b:Limbs) {
-    ll::mul::mul_1(wp, a, r_limbs as i32, *b);
-    for i in 1isize..r_limbs as isize {
-        ll::mul::addmul_1(wp.offset(i), a, (r_limbs-i) as i32, *b.offset(i));
+    if carry > 0 || ll::cmp(t.offset(r_limbs as isize).as_const(), n, r_limbs) != ::std::cmp::Ordering::Less {
+        ll::addsub::sub_n(wp, t.offset(r_limbs as isize).as_const(), n, r_limbs);
+    } else {
+        ll::copy_incr(t.offset(r_limbs as isize).as_const(), wp, r_limbs);
     }
 }
 
@@ -165,4 +148,23 @@ pub unsafe fn modpow(mut wp:LimbsMut, mp:Limbs, mn:i32, ap:Limbs, an: i32, bp:Li
             ll::div::divrem(scratch_q, wp, scratch.as_const(), 2*mn, mp, mn);
         }
     }
+}
+
+pub fn single_limb_montgomery_inverse(x:usize) -> usize {
+    let mut y = 1;
+    for i in 2..(Limb::BITS) {
+        if 1 << (i-1) < (x.wrapping_mul(y) % (1 << i)) {
+            y += 1 << i-1;
+        }
+    }
+    if 1<<(Limb::BITS-1) < x.wrapping_mul(y) {
+        y += 1 << Limb::BITS-1;
+    }
+    y
+}
+
+#[test]
+fn test_single_limb_montgomery_inverse() {
+    assert_eq!(single_limb_montgomery_inverse(23).wrapping_mul(23), 1);
+    assert_eq!(single_limb_montgomery_inverse(193514046488575).wrapping_mul(193514046488575), 1);
 }

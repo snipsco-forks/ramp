@@ -3212,23 +3212,63 @@ impl PartialOrd<Int> for usize {
 
 impl Int {
     pub fn modpow(&self, exp:&Int, modulus:&Int) -> Int {
-        debug_assert!(self.sign() == 1);
-        debug_assert!(modulus.sign() == 1);
-        debug_assert!(exp.sign() == 1);
-        debug_assert!(modulus > self);
-        if !modulus.is_even() {
-            let mont = montgomery::Modulus::new(modulus);
-            let base = mont.to_montgomery(self);
-            let result = mont.pow(&base, &exp);
-            return mont.to_natural(&result)
+        if exp.is_zero() || self == &Int::one() {
+            return if modulus == &Int::one() { Int::zero() } else { Int::one() }
         }
-        let mut result = Self::with_capacity(modulus.abs_size() as u32);
-        unsafe {
-            result.size = modulus.abs_size();
-            ll::montgomery::modpow(result.limbs_uninit(), modulus.limbs(), modulus.abs_size(), self.limbs(), self.abs_size(), exp.limbs(), exp.abs_size());
-            result.normalize();
+        if self.is_zero() && exp.sign() > 1 {
+            return Self::zero();
+        }
+
+        if !modulus.is_even() {
+            return self.odd_modpow(exp, modulus);
+        }
+
+        let j = modulus.trailing_zeros() as usize;
+        if j+1 == modulus.bit_length() as usize {
+            return self.modpow2(&exp, j);
+        }
+
+        let q = modulus >> j;
+
+        let x1 = self.odd_modpow(exp, &q);
+        let x2 = self.modpow2(exp, j);
+
+        let y = ((&x2-&x1) * q.inverse_for_powof2(j)) & ((1<<j) - 1);
+
+        x1 + q*y
+    }
+
+    fn modpow2(&self, exp:&Int, pow2:usize) -> Int {
+        let mask = (1<<pow2) - 1;
+        let mut result = Int::one();
+        let mut base_to_pow_of_2:Int = self & mask;
+        for i in 0..exp.bit_length() {
+            if exp.bit(i as u32) {
+                result *= &base_to_pow_of_2;
+                result &= mask;
+            }
+            base_to_pow_of_2 = base_to_pow_of_2.dsquare();
+            base_to_pow_of_2 &= mask;
         }
         result
+    }
+
+    pub fn inverse_for_powof2(&self, pow2:usize) -> Int {
+        let mut y = Int::one();
+        for i in 1..(pow2+1) {
+            if (Int::one() << (i-1)) < (self*&y % (Int::one() << i)) {
+                y.set_bit((i-1) as u32, true);
+            }
+        }
+        y
+    }
+
+
+    fn odd_modpow(&self, exp:&Int, modulus:&Int) -> Int {
+        let mont = montgomery::Modulus::new(modulus);
+        let base = mont.to_montgomery(self);
+        let result = mont.pow(&base, &exp);
+        return mont.to_natural(&result)
     }
 }
 
@@ -4615,6 +4655,7 @@ mod test {
     fn test_modpow() {
         let cases = [
             ("2", "10", "1009", "15"),
+            ("375", "249", "388", "175"),
             ("2", "10", "1000", "24"),
             ("1", "4349330786055998253486590232462", "4349330786055998253486590232462401", "1"),
             ("15", "1", "4349330786055998253486590232462401", "15"),
@@ -4629,7 +4670,7 @@ mod test {
             let e : Int = e.parse().unwrap();
             let m : Int = m.parse().unwrap();
             let x : Int = x.parse().unwrap();
-            assert_eq!(b.modpow(&e,&m), x);
+            assert_eq!(b.modpow(&e,&m), x, "{}^{} [{}]", b, e, m);
         }
     }
 

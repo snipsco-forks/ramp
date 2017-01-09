@@ -942,7 +942,7 @@ fn modpow(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
     let a = a.parse().0;
     let b = b.parse().0;
     let m:Int = m.parse().0;
-    if a < 0 || b <= 0 || m < 0 || a >= m || b >= m {
+    if a < 0 || b <= 0 || m < 0 || a >= m || b >= m || b.size() > 8 {
         return TestResult::discard()
     }
 

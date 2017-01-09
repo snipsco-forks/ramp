@@ -29,8 +29,7 @@ impl<'a> Modulus<'a> {
 
     fn redc(&self, a: &mut Int) {
         unsafe {
-            a.ensure_capacity(self.limbs as u32);
-            let mut t = Int::with_capacity(2 * self.limbs as u32 + 1);
+            let mut t = Int::with_capacity(2 * self.limbs as u32);
             ::ll::copy_incr(a.limbs(), t.limbs_uninit(), a.abs_size());
             for i in a.abs_size()..(t.cap as i32) {
                 *t.limbs_uninit().offset(i as isize) = ::ll::limb::Limb(0);
@@ -41,20 +40,27 @@ impl<'a> Modulus<'a> {
                                               self.modulus_inv0,
                                               t.limbs_uninit());
             a.size = self.limbs as i32;
-            a.normalize();
         }
     }
 
     pub fn mul(&self, a: &ModInt, b: &ModInt) -> ModInt {
-        let mut ab = &a.0 * &b.0;
-        self.redc(&mut ab);
-        ModInt(ab)
+        unsafe {
+            let mut t = Int::with_capacity(2 * self.limbs as u32);
+            t.size = t.cap as i32;
+            ::ll::mul(t.limbs_uninit(), a.0.limbs(), self.limbs as i32, b.0.limbs(), self.limbs as i32);
+            self.redc(&mut t);
+            ModInt(t)
+        }
     }
 
     pub fn sqr(&self, a: &ModInt) -> ModInt {
-        let mut tmp = a.0.square();
-        self.redc(&mut tmp);
-        ModInt(tmp)
+        unsafe {
+            let mut t = Int::with_capacity(2 * self.limbs as u32);
+            t.size = t.cap as i32;
+            ::ll::sqr(t.limbs_uninit(), a.0.limbs(), self.limbs as i32);
+            self.redc(&mut t);
+            ModInt(t)
+        }
     }
 
     pub fn pow(&self, a: &ModInt, b: &Int) -> ModInt {
@@ -70,16 +76,24 @@ impl<'a> Modulus<'a> {
         result
     }
 
+    fn montgomerize(&self, a: &mut Int) {
+        Self::pad_to(a, self.limbs);
+    }
+
+    fn pad_to(a: &mut Int, s:usize) {
+        unsafe {
+            a.ensure_capacity(s as u32);
+            for i in a.abs_size()..(a.cap as i32) {
+                *a.limbs_uninit().offset(i as isize) = ::ll::limb::Limb(0);
+            }
+            a.size = s as i32;
+        }
+    }
+
     #[allow(dead_code)]
     pub fn to_montgomery(&self, a: &Int) -> ModInt {
         let mut it = (a * &self.r) % self.modulus;
-        unsafe {
-            it.ensure_capacity(self.limbs as u32);
-            for i in it.abs_size()..(it.cap as i32) {
-                *it.limbs_uninit().offset(i as isize) = ::ll::limb::Limb(0);
-            }
-            it.size = self.limbs as i32;
-        }
+        self.montgomerize(&mut it);
         ModInt(it)
     }
 
@@ -88,7 +102,9 @@ impl<'a> Modulus<'a> {
         let mut it = a.0;
         it.normalize();
         it %= self.modulus;
+        Self::pad_to(&mut it, 2*self.limbs);
         self.redc(&mut it);
+        it.normalize();
         it
     }
 }

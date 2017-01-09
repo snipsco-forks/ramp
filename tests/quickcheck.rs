@@ -917,7 +917,7 @@ fn montgomery_cvt(a: BigIntStr, m:BigIntStr) -> TestResult {
         return TestResult::discard()
     }
     let montgomery = montgomery::Modulus::new(&m);
-    TestResult::from_bool(montgomery.to_natural(&montgomery.to_montgomery(&a)) == a)
+    TestResult::from_bool(montgomery.to_natural(montgomery.to_montgomery(&a)) == a)
 }
 
 #[quickcheck]
@@ -933,8 +933,29 @@ fn montgomery_mul(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
     let abar = montgomery.to_montgomery(&a);
     let bbar = montgomery.to_montgomery(&b);
     let ab_bar = montgomery.mul(&abar, &bbar);
-    let ab = montgomery.to_natural(&ab_bar);
+    let ab = montgomery.to_natural(ab_bar);
     TestResult::from_bool(ab == a*b % &m)
+}
+
+#[quickcheck]
+fn modpow(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
+    let a = a.parse().0;
+    let b = b.parse().0;
+    let m:Int = m.parse().0;
+    if a < 0 || b <= 0 || m < 0 || a >= m || b >= m {
+        return TestResult::discard()
+    }
+
+    let bitlen = b.bit_length();
+    let mut result = a.clone();
+    for i in (0..bitlen-1).rev() {
+        result = &result * &result % &m;
+        if b.bit(i) {
+            result = &a * result % &m;
+        }
+    }
+
+    TestResult::from_bool(result == a.modpow(&b, &m))
 }
 
 mod format {

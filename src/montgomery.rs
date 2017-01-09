@@ -78,13 +78,16 @@ impl<'a> Modulus<'a> {
             for i in it.abs_size()..(it.cap as i32) {
                 *it.limbs_uninit().offset(i as isize) = ::ll::limb::Limb(0);
             }
+            it.size = self.limbs as i32;
         }
         ModInt(it)
     }
 
     #[allow(dead_code)]
-    pub fn to_natural(&self, a: &ModInt) -> Int {
-        let mut it = &a.0 % self.modulus;
+    pub fn to_natural(&self, a: ModInt) -> Int {
+        let mut it = a.0;
+        it.normalize();
+        it %= self.modulus;
         self.redc(&mut it);
         it
     }
@@ -114,7 +117,7 @@ mod test {
             let a = a.parse().unwrap();
             let m = m.parse().unwrap();
             let mg = super::Modulus::new(&m);
-            assert_eq!(mg.to_natural(&mg.to_montgomery(&a)), a);
+            assert_eq!(mg.to_natural(mg.to_montgomery(&a)), a);
         }
     }
 
@@ -129,7 +132,7 @@ mod test {
             let a_bar = mg.to_montgomery(&a);
             let b_bar = mg.to_montgomery(&b);
             let ab_bar = mg.mul(&a_bar, &b_bar);
-            let ab = mg.to_natural(&ab_bar);
+            let ab = mg.to_natural(ab_bar);
             assert_eq!(ab, a * b % &m);
         }
     }

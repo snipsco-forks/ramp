@@ -938,6 +938,21 @@ fn montgomery_mul(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
 }
 
 #[quickcheck]
+fn montgomery_sqr(a: BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::montgomery;
+    let a = a.parse().0;
+    let m:Int = m.parse().0;
+    if a < 0 || m < 0 || a >= m || m.is_even() {
+        return TestResult::discard()
+    }
+    let montgomery = montgomery::Modulus::new(&m);
+    let abar = montgomery.to_montgomery(&a);
+    let a2_bar = montgomery.mul(&abar, &abar);
+    let a2 = montgomery.to_natural(a2_bar);
+    TestResult::from_bool(a2 == a.square() % &m)
+}
+
+#[quickcheck]
 fn modpow(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
     let a = a.parse().0;
     let b = b.parse().0;

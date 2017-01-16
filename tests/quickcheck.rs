@@ -909,46 +909,46 @@ fn from_str_decimal(a: BigIntStr) {
 }
 
 #[quickcheck]
-fn montgomery_cvt(a: BigIntStr, m:BigIntStr) -> TestResult {
-    use ramp::int::montgomery;
+fn mtgy_cvt(a: BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::mtgy;
     let a = a.parse().0;
     let m:Int = m.parse().0;
     if a < 0 || m < 0 || a >= m || m.is_even() {
         return TestResult::discard()
     }
-    let montgomery = montgomery::Modulus::new(&m);
-    TestResult::from_bool(montgomery.to_natural(montgomery.to_montgomery(&a)) == a)
+    let mg = mtgy::MtgyModulus::new(&m);
+    TestResult::from_bool(mg.to_int(&mg.to_mtgy(&a)) == a)
 }
 
 #[quickcheck]
-fn montgomery_mul(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
-    use ramp::int::montgomery;
+fn mtgy_mul(a: BigIntStr, b:BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::mtgy;
     let a = a.parse().0;
     let b = b.parse().0;
     let m:Int = m.parse().0;
     if a < 0 || b < 0 || m < 0 || a >= m || b >= m || m.is_even() {
         return TestResult::discard()
     }
-    let montgomery = montgomery::Modulus::new(&m);
-    let abar = montgomery.to_montgomery(&a);
-    let bbar = montgomery.to_montgomery(&b);
-    let ab_bar = montgomery.mul(&abar, &bbar);
-    let ab = montgomery.to_natural(ab_bar);
+    let mg = mtgy::MtgyModulus::new(&m);
+    let abar = mg.to_mtgy(&a);
+    let bbar = mg.to_mtgy(&b);
+    let ab_bar = mg.mul(&abar, &bbar);
+    let ab = mg.to_int(&ab_bar);
     TestResult::from_bool(ab == a*b % &m)
 }
 
 #[quickcheck]
-fn montgomery_sqr(a: BigIntStr, m:BigIntStr) -> TestResult {
-    use ramp::int::montgomery;
+fn mtgy_sqr(a: BigIntStr, m:BigIntStr) -> TestResult {
+    use ramp::int::mtgy;
     let a = a.parse().0;
     let m:Int = m.parse().0;
     if a < 0 || m < 0 || a >= m || m.is_even() {
         return TestResult::discard()
     }
-    let montgomery = montgomery::Modulus::new(&m);
-    let abar = montgomery.to_montgomery(&a);
-    let a2_bar = montgomery.mul(&abar, &abar);
-    let a2 = montgomery.to_natural(a2_bar);
+    let mg = mtgy::MtgyModulus::new(&m);
+    let abar = mg.to_mtgy(&a);
+    let a2_bar = mg.mul(&abar, &abar);
+    let a2 = mg.to_int(&a2_bar);
     TestResult::from_bool(a2 == a.square() % &m)
 }
 

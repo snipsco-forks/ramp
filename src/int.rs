@@ -3211,10 +3211,22 @@ impl PartialOrd<Int> for usize {
 }
 
 impl Int {
+    /// Computes `self` to the power of `exp` modulus `modulus`.
+    ///
+    /// # Panic
+    ///
+    /// * Panics if modulus is negative.
+    /// * Panics if self is negative.
+    /// * Panics if exp is negative.
     pub fn modpow(&self, exp:&Int, modulus:&Int) -> Int {
+        assert!(self.sign() >= 0);
+        assert!(exp.sign() >= 0);
+        assert!(modulus.sign() >= 0);
+
         if exp.is_zero() || self == &Int::one() {
             return if modulus == &Int::one() { Int::zero() } else { Int::one() }
         }
+
         if self.is_zero() && exp.sign() > 1 {
             return Self::zero();
         }
@@ -4605,6 +4617,8 @@ mod test {
     #[test]
     fn test_modpow() {
         let cases = [
+            ("0", "1", "1009", "0"),
+            ("1", "1", "1009", "1"),
             ("2", "10", "1009", "15"),
             ("375", "249", "388", "175"),
             ("2", "10", "1000", "24"),

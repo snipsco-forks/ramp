@@ -146,6 +146,11 @@ pub fn inv1(x: Limb) -> Limb {
 #[test]
 fn test_inv1() {
     assert_eq!(inv1(Limb(23)).0.wrapping_mul(23), 1);
+}
+
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn test_inv1_64() {
     assert_eq!(inv1(Limb(193514046488575)).0.wrapping_mul(193514046488575),
                1);
 }

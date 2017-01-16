@@ -1065,7 +1065,7 @@ impl AddAssign<Limb> for Int {
         unsafe {
             let sign = self.sign();
             let size = self.abs_size();
-            let ptr = self.limbs_mut();
+            let mut ptr = self.limbs_mut();
 
             // Self is positive, just add `other`
             if sign == 1 {
@@ -1080,6 +1080,7 @@ impl AddAssign<Limb> for Int {
                 if borrow != 0 {
                     // There was a borrow, ignore it but flip the sign on self
                     self.size = self.abs_size();
+                    *ptr = -*ptr;
                 }
                 self.normalize();
             }
@@ -3980,6 +3981,7 @@ mod test {
             ("1", "0", "1"),
             ("1", "1", "0"),
             ("0", "1", "-1"),
+            ("14", "13", "1"),
             ("190000000000000", "1", "189999999999999"),
             ("192834857324591531", "431343873217510631841", "-431151038360186040310"),
             ("0", "-1", "1"),
@@ -4004,6 +4006,13 @@ mod test {
             assert_mp_eq!(l.clone() - &r, a.clone());
             assert_mp_eq!(l - r, a);
         }
+    }
+
+    #[test]
+    fn baseint_sub_int() {
+        let a = 2 as BaseInt;
+        let b = Int::from(1);
+        assert_eq!(a-b, 1);
     }
 
     #[test]

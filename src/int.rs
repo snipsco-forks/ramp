@@ -60,14 +60,14 @@ use traits::DivRem;
  * - `Int::from` will convert from any primitive integer type to an `Int` of the same value
  *
  *   ```
- *   # use ramp::Int;
+ *   # use framp::Int;
  *   let four = Int::from(4);
  *   ```
  *
  * - `Int::from_str` (or `str::parse`) will attempt to convert from a string to an `Int`
  *
  *   ```
- *   # use ramp::Int;
+ *   # use framp::Int;
  *   # use std::str::FromStr;
  *   let i = Int::from_str("123456789").unwrap();
  *   ```
@@ -80,7 +80,7 @@ use traits::DivRem;
  * is done with the `From` trait:
  *
  *   ```
- *   # use ramp::Int;
+ *   # use framp::Int;
  *   let big_i   = Int::from(123456789);
  *   let i = i32::from(&big_i);
  *   assert_eq!(123456789, i);
@@ -102,7 +102,7 @@ use traits::DivRem;
  * possible, allowing checks for small constant values to be done easily:
  *
  *   ```
- *   # use ramp::Int;
+ *   # use framp::Int;
  *   let big_i   = Int::from(123456789);
  *   assert!(big_i == 123456789);
  *   ```
@@ -3680,7 +3680,7 @@ impl std::iter::Step for Int {
 ///
 /// ```
 /// extern crate rand;
-/// extern crate ramp;
+/// extern crate framp as ramp;
 ///
 /// use ramp::RandomInt;
 ///

@@ -13,7 +13,7 @@
 //    limitations under the License.
 
 #![crate_type="lib"]
-#![crate_name="ramp"]
+#![crate_name="framp"]
 
 #![feature(core_intrinsics, asm, heap_api, associated_consts)]
 #![feature(step_trait, unique, alloc)]

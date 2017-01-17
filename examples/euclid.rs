@@ -1,4 +1,4 @@
-extern crate ramp;
+extern crate framp as ramp;
 
 use std::cmp::Ordering;
 use ramp::Int;

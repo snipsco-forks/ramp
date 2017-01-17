@@ -1,5 +1,5 @@
 extern crate quickcheck;
-extern crate ramp;
+extern crate framp as ramp;
 extern crate num_bigint;
 
 use quickcheck::TestResult;

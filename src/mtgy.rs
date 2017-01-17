@@ -36,8 +36,8 @@ use int::Int;
 /// Starting with 17 as a modulus, prepare the modulus helpers.
 ///
 /// ```rust
-/// use ramp::int::Int;
-/// use ramp::int::mtgy::*;
+/// use framp::int::Int;
+/// use framp::int::mtgy::*;
 ///
 /// let m:Int = 17.into();
 /// let modulus = MtgyModulus::new(&m);
@@ -46,8 +46,8 @@ use int::Int;
 /// Convert between Montgomery and natural space:
 ///
 /// ```rust
-/// # use ramp::int::Int;
-/// # use ramp::int::mtgy::*;
+/// # use framp::int::Int;
+/// # use framp::int::mtgy::*;
 /// # let m:Int = 17.into();
 /// # let modulus = MtgyModulus::new(&m);
 /// let a:Int = 5.into();
@@ -59,8 +59,8 @@ use int::Int;
 /// Perform a modular multiplication in Montgomery space:
 ///
 /// ```rust
-/// # use ramp::int::Int;
-/// # use ramp::int::mtgy::*;
+/// # use framp::int::Int;
+/// # use framp::int::mtgy::*;
 /// # let m:Int = 17.into();
 /// # let modulus = MtgyModulus::new(&m);
 /// let a:Int = 5.into();
@@ -76,8 +76,8 @@ use int::Int;
 /// basis is in Montgomery form, the exponent is in natural space.
 ///
 /// ```rust
-/// # use ramp::int::Int;
-/// # use ramp::int::mtgy::*;
+/// # use framp::int::Int;
+/// # use framp::int::mtgy::*;
 /// # let m:Int = 17.into();
 /// # let modulus = MtgyModulus::new(&m);
 /// let a:Int = 5.into();

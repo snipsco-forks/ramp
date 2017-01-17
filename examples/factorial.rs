@@ -12,7 +12,7 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-extern crate ramp;
+extern crate framp as ramp;
 
 use ramp::Int;
 

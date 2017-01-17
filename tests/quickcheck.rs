@@ -12,7 +12,7 @@ extern crate num_integer;
 
 extern crate quickcheck;
 
-extern crate ramp;
+extern crate framp as ramp;
 
 #[cfg(feature="rust-gmp")]
 pub use gmp::mpz::Mpz as RefImpl;

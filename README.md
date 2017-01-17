@@ -13,7 +13,7 @@ numbers.
 
 ```rust
 
-extern crate ramp;
+extern crate framp as ramp;
 use ramp::Int;
 
 // Calculates n!

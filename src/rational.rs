@@ -25,10 +25,11 @@ use std::ops::{
     Add, Sub, Mul, Div, Rem, Neg,
     AddAssign, SubAssign, MulAssign, DivAssign,
 };
+use num_traits::{Zero, One};
 
 use ll;
 
-use int::Int;
+use int::{Int, ParseIntError};
 
 use ieee754::Ieee754;
 
@@ -443,7 +444,7 @@ impl<'a> Add<Rational> for &'a Rational {
     }
 }
 
-impl<'a> Add<&'a Rational> for &'a Rational {
+impl<'a, 'b> Add<&'a Rational> for &'b Rational {
     type Output = Rational;
 
     fn add(self, other: &'a Rational) -> Rational {
@@ -477,7 +478,7 @@ impl<'a> Add<Int> for &'a Rational {
     }
 }
 
-impl<'a> Add<&'a Int> for &'a Rational {
+impl<'a, 'b> Add<&'a Int> for &'b Rational {
     type Output = Rational;
 
     fn add(self, other: &'a Int) -> Rational {
@@ -509,7 +510,7 @@ impl<'a> Add<Rational> for &'a Int {
     }
 }
 
-impl<'a> Add<&'a Rational> for &'a Int {
+impl<'a, 'b> Add<&'a Rational> for &'b Int {
     type Output = Rational;
 
     fn add(self, other: &'a Rational) -> Rational {
@@ -561,7 +562,7 @@ impl<'a> Sub<Rational> for &'a Rational {
     }
 }
 
-impl<'a> Sub<&'a Rational> for &'a Rational {
+impl<'a, 'b> Sub<&'a Rational> for &'b Rational {
     type Output = Rational;
 
     fn sub(self, other: &'a Rational) -> Rational {
@@ -638,7 +639,7 @@ impl<'a> Mul<Rational> for &'a Rational {
     }
 }
 
-impl<'a> Mul<&'a Rational> for &'a Rational {
+impl<'a, 'b> Mul<&'a Rational> for &'b Rational {
     type Output = Rational;
 
     fn mul(self, other: &'a Rational) -> Rational {
@@ -672,7 +673,7 @@ impl<'a> Mul<Int> for &'a Rational {
     }
 }
 
-impl<'a> Mul<&'a Int> for &'a Rational {
+impl<'a, 'b> Mul<&'a Int> for &'b Rational {
     type Output = Rational;
 
     fn mul(self, other: &'a Int) -> Rational {
@@ -704,7 +705,7 @@ impl<'a> Mul<Rational> for &'a Int {
     }
 }
 
-impl<'a> Mul<&'a Rational> for &'a Int {
+impl<'a, 'b> Mul<&'a Rational> for &'b Int {
     type Output = Rational;
 
     fn mul(self, other: &'a Rational) -> Rational {
@@ -777,7 +778,7 @@ impl<'a> Div<Rational> for &'a Rational {
     }
 }
 
-impl<'a> Div<&'a Rational> for &'a Rational {
+impl<'a, 'b> Div<&'a Rational> for &'b Rational {
     type Output = Rational;
 
     fn div(self, other: &'a Rational) -> Rational {
@@ -811,7 +812,7 @@ impl<'a> Div<Int> for &'a Rational {
     }
 }
 
-impl<'a> Div<&'a Int> for &'a Rational {
+impl<'a, 'b> Div<&'a Int> for &'b Rational {
     type Output = Rational;
 
     fn div(self, other: &'a Int) -> Rational {
@@ -843,7 +844,7 @@ impl<'a> Div<Rational> for &'a Int {
     }
 }
 
-impl<'a> Div<&'a Rational> for &'a Int {
+impl<'a, 'b> Div<&'a Rational> for &'b Int {
     type Output = Rational;
 
     fn div(self, other: &'a Rational) -> Rational {
@@ -883,6 +884,38 @@ macro_rules! impl_from_float {
 impl_from_float!(f32, 23);
 impl_from_float!(f64, 52);
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParseRationalError(ParseIntError);
+
+impl std::error::Error for ParseRationalError {
+    fn description<'a>(&'a self) -> &'a str {
+        self.0.description()
+    }
+}
+
+impl fmt::Display for ParseRationalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<ParseIntError> for ParseRationalError {
+    fn from(e: ParseIntError) -> ParseRationalError {
+        ParseRationalError(e)
+    }
+}
+
+impl std::str::FromStr for Rational {
+    type Err = ParseRationalError;
+
+    fn from_str(s: &str) -> Result<Rational, ParseRationalError> {
+        match s.find('/') {
+            Some(i) => Ok(Rational::new(Int::from_str(&s[..i])?, Int::from_str(&s[i + 1..])?)),
+            None => Ok(Rational::new(Int::from_str(s)?, Int::one())),
+        }
+    }
+}
+
 impl fmt::Debug for Rational {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}/{:?}", self.n, self.d)
@@ -898,6 +931,25 @@ impl fmt::Display for Rational {
         } else {
             write!(f, "{}/{}", self.n, self.d)
         }
+    }
+}
+
+impl Zero for Rational {
+    #[inline]
+    fn zero() -> Rational {
+        Rational::new(Int::zero(), Int::one())
+    }
+
+    #[inline]
+    fn is_zero(&self) -> bool {
+        self.n.is_zero()
+    }
+}
+
+impl One for Rational {
+    #[inline]
+    fn one() -> Rational {
+        Rational::new(Int::one(), Int::one())
     }
 }
 
@@ -931,22 +983,17 @@ mod test {
     );
 
     macro_rules! binop_cases {
-        ($(($ln:tt/$ld:tt, $rn:tt/$rd:tt, $an:tt/$ad:tt)),+) => (
-            [$((Rational::new($ln.parse().unwrap(),
-                              $ld.parse().unwrap()),
-                Rational::new($rn.parse().unwrap(),
-                              $rd.parse().unwrap()),
-                Rational::new($an.parse().unwrap(),
-                              $ad.parse().unwrap()))),+]
+        ($(($l:tt, $r:tt, $a:tt)),+) => (
+            [$((Rational::from_str($l).unwrap(),
+                Rational::from_str($r).unwrap(),
+                Rational::from_str($a).unwrap())),+]
         );
     }
 
     macro_rules! unop_cases {
-        ($(($ln:tt/$ld:tt, $rn:tt/$rd:tt)),+) => (
-            [$((Rational::new($ln.parse().unwrap(),
-                              $ld.parse().unwrap()),
-                Rational::new($rn.parse().unwrap(),
-                              $rd.parse().unwrap()))),+]
+        ($(($l:tt, $r:tt)),+) => (
+            [$((Rational::from_str($l).unwrap(),
+                Rational::from_str($r).unwrap())),+]
         );
     }
 
@@ -954,14 +1001,14 @@ mod test {
     #[test]
     fn add() {
         let cases = binop_cases! {
-            ("0"/"1", "0"/"1", "0"/"1"),
-            ("1"/"1", "1"/"1", "2"/"1"),
-            ("1"/"2", "1"/"2", "1"/"1"),
-            ("1"/"2", "2"/"4", "1"/"1"),
-            ("1"/"3", "1"/"4", "7"/"12"),
-            ("-1"/"1", "1"/"1", "0"/"1"),
-            ("1"/"2", "-1"/"1", "-1"/"2"),
-            ("1"/"1", "-1"/"2", "1"/"2")
+            ("0/1", "0/1", "0/1"),
+            ("1/1", "1/1", "2/1"),
+            ("1/2", "1/2", "1/1"),
+            ("1/2", "2/4", "1/1"),
+            ("1/3", "1/4", "7/12"),
+            ("-1/1", "1/1", "0/1"),
+            ("1/2", "-1/1", "-1/2"),
+            ("1/1", "-1/2", "1/2")
         };
 
         for &(ref l, ref r, ref a) in cases.iter() {
@@ -972,12 +1019,12 @@ mod test {
     #[test]
     fn sub() {
         let cases = binop_cases! {
-            ("0"/"1", "0"/"1", "0"/"1"),
-            ("1"/"1", "1"/"1", "0"/"1"),
-            ("1"/"1", "1"/"2", "1"/"2"),
-            ("1"/"2", "1"/"1", "-1"/"2"),
-            ("-1"/"2", "1"/"1", "-3"/"2"),
-            ("1"/"3", "1"/"4", "1"/"12")
+            ("0/1", "0/1", "0/1"),
+            ("1/1", "1/1", "0/1"),
+            ("1/1", "1/2", "1/2"),
+            ("1/2", "1/1", "-1/2"),
+            ("-1/2", "1/1", "-3/2"),
+            ("1/3", "1/4", "1/12")
         };
 
         for &(ref l, ref r, ref a) in cases.iter() {
@@ -988,11 +1035,11 @@ mod test {
     #[test]
     fn neg() {
         let cases = unop_cases! {
-            ("0"/"1", "0"/"1"),
-            ("1"/"1", "-1"/"1"),
-            ("-1"/"1", "1"/"1"),
-            ("1"/"-1", "-1"/"-1"),
-            ("-1"/"-1", "1"/"-1")
+            ("0/1", "0/1"),
+            ("1/1", "-1/1"),
+            ("-1/1", "1/1"),
+            ("1/-1", "-1/-1"),
+            ("-1/-1", "1/-1")
         };
 
         for &(ref l, ref r) in cases.iter() {
@@ -1007,12 +1054,12 @@ mod test {
     #[test]
     fn mul() {
         let cases = binop_cases! {
-            ("0"/"1", "0"/"1", "0"/"1"),
-            ("1"/"1", "0"/"1", "0"/"1"),
-            ("1"/"1", "1"/"1", "1"/"1"),
-            ("1"/"1", "1"/"2", "1"/"2"),
-            ("1"/"3", "2"/"1", "2"/"3"),
-            ("3"/"8", "2"/"5", "3"/"20")
+            ("0/1", "0/1", "0/1"),
+            ("1/1", "0/1", "0/1"),
+            ("1/1", "1/1", "1/1"),
+            ("1/1", "1/2", "1/2"),
+            ("1/3", "2/1", "2/3"),
+            ("3/8", "2/5", "3/20")
         };
 
         for &(ref l, ref r, ref a) in cases.iter() {
@@ -1023,11 +1070,11 @@ mod test {
     #[test]
     fn div() {
         let cases = binop_cases! {
-            ("0"/"1", "1"/"1", "0"/"1"),
-            ("1"/"1", "1"/"1", "1"/"1"),
-            ("1"/"1", "1"/"2", "2"/"1"),
-            ("1"/"3", "2"/"1", "1"/"6"),
-            ("3"/"8", "2"/"5", "15"/"16")
+            ("0/1", "1/1", "0/1"),
+            ("1/1", "1/1", "1/1"),
+            ("1/1", "1/2", "2/1"),
+            ("1/3", "2/1", "1/6"),
+            ("3/8", "2/5", "15/16")
         };
 
         for &(ref l, ref r, ref a) in cases.iter() {
@@ -1038,22 +1085,20 @@ mod test {
     #[test]
     fn ord() {
         macro_rules! ord_cases {
-            ($(($ln:tt/$ld:tt, $rn:tt/$rd:tt, $ord:expr)),+) => (
-                [$((Rational::new($ln.parse().unwrap(),
-                                  $ld.parse().unwrap()),
-                    Rational::new($rn.parse().unwrap(),
-                                  $rd.parse().unwrap()),
+            ($(($l:tt, $r:tt, $ord:expr)),+) => (
+                [$((Rational::from_str($l).unwrap(),
+                    Rational::from_str($r).unwrap(),
                     $ord)),+]
             );
         }
 
         let cases = ord_cases! {
-            ("0"/"1", "0"/"1", Ordering::Equal),
-            ("1"/"1", "2"/"2", Ordering::Equal),
-            ("1"/"2", "1"/"1", Ordering::Less),
-            ("1"/"1", "1"/"2", Ordering::Greater),
-            ("4"/"5", "1"/"2", Ordering::Greater),
-            ("-4"/"5", "1"/"2", Ordering::Less)
+            ("0/1", "0/1", Ordering::Equal),
+            ("1/1", "2/2", Ordering::Equal),
+            ("1/2", "1/1", Ordering::Less),
+            ("1/1", "1/2", Ordering::Greater),
+            ("4/5", "1/2", Ordering::Greater),
+            ("-4/5", "1/2", Ordering::Less)
         };
 
         for &(ref l, ref r, a) in cases.iter() {
@@ -1065,10 +1110,10 @@ mod test {
     #[test]
     fn abs() {
         let cases = unop_cases! {
-            ("0"/"1", "0"/"1"),
-            ("-1"/"1", "1"/"1"),
-            ("-100"/"-100", "-100"/"-100"),
-            ("1337"/"-1337", "-1337"/"-1337")
+            ("0/1", "0/1"),
+            ("-1/1", "1/1"),
+            ("-100/-100", "-100/-100"),
+            ("1337/-1337", "-1337/-1337")
         };
 
         for &(ref r, ref l) in cases.into_iter() {
@@ -1080,23 +1125,22 @@ mod test {
     fn round() {
         use int::Int;
         macro_rules! round_cases {
-            ($(($n:tt/$d:tt, $int:expr)),+) => (
-                [$((Rational::new($n.parse().unwrap(),
-                                  $d.parse().unwrap()),
+            ($(($x:tt, $int:expr)),+) => (
+                [$((Rational::from_str($x).unwrap(),
                     Int::from($int))),+]
             );
         }
 
         let cases = round_cases! {
-            ("0"/"1", 0),
-            ("100"/"201", 0),
-            ("100"/"200", 1),
-            ("100"/"67", 1),
-            ("100"/"66", 2),
-            ("100"/"41", 2),
-            ("100"/"40", 3),
-            ("100"/"29", 3),
-            ("100"/"28", 4)
+            ("0/1", 0),
+            ("100/201", 0),
+            ("100/200", 1),
+            ("100/67", 1),
+            ("100/66", 2),
+            ("100/41", 2),
+            ("100/40", 3),
+            ("100/29", 3),
+            ("100/28", 4)
         };
 
         for &(ref q, ref i) in cases.iter() {

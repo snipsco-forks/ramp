@@ -8,7 +8,7 @@ license = "Apache-2.0"
 readme = "README.md"
 keywords = ["bignum","math","number"]
 
-repository = "https://github.com/snips/ramp"
+repository = "https://github.com/snipsco/ramp"
 documentation = "https://docs.rs/framp"
 
 [lib]

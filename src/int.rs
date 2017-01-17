@@ -890,6 +890,46 @@ impl Int {
         let exp = (2.0f64).powi(exp);
         f * exp
     }
+
+    /// Computes `self` to the power of `exp` modulus `modulus`.
+    ///
+    /// # Panic
+    ///
+    /// * Panics if modulus is negative.
+    /// * Panics if self is negative.
+    /// * Panics if exp is negative.
+    pub fn modpow(&self, exp:&Int, modulus:&Int) -> Int {
+        assert!(self.sign() >= 0);
+        assert!(exp.sign() >= 0);
+        assert!(modulus.sign() >= 0);
+
+        if exp.is_zero() || self == &Int::one() {
+            return if modulus == &Int::one() { Int::zero() } else { Int::one() }
+        }
+
+        if self.is_zero() && exp.sign() > 1 {
+            return Self::zero();
+        }
+
+        if !modulus.is_even() {
+            return self.odd_modpow(exp, modulus);
+        }
+
+        let j = modulus.trailing_zeros() as usize;
+        if j+1 == modulus.bit_length() as usize {
+            return self.modpow2(&exp, j);
+        }
+
+        let q = modulus >> j;
+
+        let x1 = self.odd_modpow(exp, &q);
+        let x2 = self.modpow2(exp, j);
+
+        let y = ((&x2-&x1) * q.inverse_for_powof2(j)) & ((Int::one()<<j) - 1);
+
+        x1 + q*y
+    }
+
 }
 
 impl Clone for Int {
@@ -3212,45 +3252,6 @@ impl PartialOrd<Int> for usize {
 }
 
 impl Int {
-    /// Computes `self` to the power of `exp` modulus `modulus`.
-    ///
-    /// # Panic
-    ///
-    /// * Panics if modulus is negative.
-    /// * Panics if self is negative.
-    /// * Panics if exp is negative.
-    pub fn modpow(&self, exp:&Int, modulus:&Int) -> Int {
-        assert!(self.sign() >= 0);
-        assert!(exp.sign() >= 0);
-        assert!(modulus.sign() >= 0);
-
-        if exp.is_zero() || self == &Int::one() {
-            return if modulus == &Int::one() { Int::zero() } else { Int::one() }
-        }
-
-        if self.is_zero() && exp.sign() > 1 {
-            return Self::zero();
-        }
-
-        if !modulus.is_even() {
-            return self.odd_modpow(exp, modulus);
-        }
-
-        let j = modulus.trailing_zeros() as usize;
-        if j+1 == modulus.bit_length() as usize {
-            return self.modpow2(&exp, j);
-        }
-
-        let q = modulus >> j;
-
-        let x1 = self.odd_modpow(exp, &q);
-        let x2 = self.modpow2(exp, j);
-
-        let y = ((&x2-&x1) * q.inverse_for_powof2(j)) & ((Int::one()<<j) - 1);
-
-        x1 + q*y
-    }
-
     fn modpow2(&self, exp:&Int, pow2:usize) -> Int {
         let mask = (Int::one() << pow2) - 1;
         let mut result = Int::one();
@@ -3266,7 +3267,7 @@ impl Int {
         result
     }
 
-    pub fn inverse_for_powof2(&self, pow2:usize) -> Int {
+    fn inverse_for_powof2(&self, pow2:usize) -> Int {
         let mut y = Int::one();
         for i in 1..(pow2+1) {
             if (Int::one() << (i-1)) < (self*&y % (Int::one() << i)) {

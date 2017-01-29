@@ -52,9 +52,8 @@ unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -
  *
  * Returns the highest limb of the product
  */
-#[cfg(not(asm))]
 #[inline]
-pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn _mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
 
@@ -67,16 +66,40 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
  *
  * Returns the highest limb of the product
  */
-#[cfg(asm)]
-#[inline]
-pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
-    extern "C" {
-        fn ramp_mul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;
-    }
+    let r:usize;
+    asm!("
+    mov ($2), %rax
+    mul $7
+    mov %rax, ($1)
 
-    ramp_mul_1(&mut *wp, &*xp, n, vl)
+    dec $3
+    jz 2f
+    add $$8, $1
+    add $$8, $2
+    mov %rdx, %r8
+1:
+    mov ($2), %rax
+    mul $7
+    add %r8, %rax
+    adc $$0, %rdx
+    mov %rax, ($1)
+    add $$8, $1
+    add $$8, $2
+    dec $3
+    jz 2f
+    mov %rdx, %r8
+    jmp 1b
+2:
+    mov %rdx, $0
+    "
+    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
+    : "r8", "rdx", "rax", "memory", "cc"
+    : "volatile", "alignstack");
+    Limb(r as _)
 }
 
 #[allow(dead_code)]
@@ -110,9 +133,8 @@ unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  * Multiplies the `n` least-signficiant digits of `xp` by `vl` and adds them to the `n`
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
-#[cfg(not(asm))]
 #[inline]
-pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn _addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     addmul_1_generic(wp, xp, n, vl)
 }
 
@@ -120,14 +142,43 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
  * Multiplies the `n` least-signficiant digits of `xp` by `vl` and adds them to the `n`
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
-#[cfg(asm)]
+#[allow(unused_assignments)]
 #[inline]
-pub unsafe fn addmul_1(mut wp: LimbsMut, xp:  Limbs, n: i32, vl: Limb) -> Limb {
-    extern "C" {
-        fn ramp_addmul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;
-    }
+pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
+    debug_assert!(n > 0);
+    debug_assert!(same_or_incr(wp, n, xp, n));
+    let r:usize;
+    asm!("
+    mov ($2), %rax
+    mul $7
+    add %rax, ($1)
+    adc $$0, %rdx
+    mov %rdx, %r8
+    dec $3
+    jz 2f
+    add $$8, $1
+    add $$8, $2
+1:
+    mov ($2), %rax
+    mul $7
+    add %r8, %rax
+    adc $$0, %rdx
+    mov %rdx, %r8
+    add %rax, ($1)
+    adc $$0, %r8
 
-    ramp_addmul_1(&mut *wp, &*xp, n, vl)
+    add $$8, $1
+    add $$8, $2
+    dec $3
+    jnz 1b
+2:
+    mov %r8, $0
+    "
+    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
+    : "r8", "rdx", "rax", "memory", "cc"
+    : "volatile", "alignstack");
+    Limb(r as _)
 }
 
 #[allow(dead_code)]
@@ -161,24 +212,54 @@ unsafe fn submul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  * Multiplies the `n` least-signficiant digits of `xp` by `vl` and subtracts them from the `n`
  * least-significant digits of `wp`. Returns the highest limb of the result, adjust for borrow.
  */
+/*
 #[cfg(not(asm))]
 #[inline]
 pub unsafe fn submul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     submul_1_generic(wp, xp, n, vl)
 }
+*/
 
 /**
  * Multiplies the `n` least-signficiant digits of `xp` by `vl` and subtracts them from the `n`
  * least-significant digits of `wp`. Returns the highest limb of the result, adjust for borrow.
  */
-#[cfg(asm)]
 #[inline]
-pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
-    extern "C" {
-        fn ramp_submul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;
-    }
+pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
+    debug_assert!(n > 0);
+    debug_assert!(same_or_incr(wp, n, xp, n));
+    let r:usize;
+    asm!("
+    mov ($2), %rax
+    mul $7
+    sub %rax, ($1)
+    adc $$0, %rdx
+    mov %rdx, %r8
+    dec $3
+    jz 2f
+    add $$8, $1
+    add $$8, $2
+1:
+    mov ($2), %rax
+    mul $7
+    add %r8, %rax
+    adc $$0, %rdx
+    mov %rdx, %r8
+    sub %rax, ($1)
+    adc $$0, %r8
 
-    ramp_submul_1(&mut *wp, &*xp, n, vl)
+    add $$8, $1
+    add $$8, $2
+    dec $3
+    jnz 1b
+2:
+    mov %r8, $0
+    "
+    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
+    : "r8", "rdx", "rax", "memory", "cc"
+    : "volatile", "alignstack");
+    Limb(r as _)
 }
 
 /**

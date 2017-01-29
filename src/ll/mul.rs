@@ -77,21 +77,17 @@ pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
 
     dec $3
     jz 2f
+1:
+    mov %rdx, %r8
     add $$8, $1
     add $$8, $2
-    mov %rdx, %r8
-1:
     mov ($2), %rax
     mul $7
     add %r8, %rax
     adc $$0, %rdx
     mov %rax, ($1)
-    add $$8, $1
-    add $$8, $2
     dec $3
-    jz 2f
-    mov %rdx, %r8
-    jmp 1b
+    jnz 1b
 2:
     mov %rdx, $0
     "
@@ -156,9 +152,9 @@ pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     mov %rdx, %r8
     dec $3
     jz 2f
+1:
     add $$8, $1
     add $$8, $2
-1:
     mov ($2), %rax
     mul $7
     add %r8, %rax
@@ -167,8 +163,6 @@ pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     add %rax, ($1)
     adc $$0, %r8
 
-    add $$8, $1
-    add $$8, $2
     dec $3
     jnz 1b
 2:
@@ -237,9 +231,9 @@ pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     mov %rdx, %r8
     dec $3
     jz 2f
+1:
     add $$8, $1
     add $$8, $2
-1:
     mov ($2), %rax
     mul $7
     add %r8, %rax
@@ -248,8 +242,6 @@ pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     sub %rax, ($1)
     adc $$0, %r8
 
-    add $$8, $1
-    add $$8, $2
     dec $3
     jnz 1b
 2:

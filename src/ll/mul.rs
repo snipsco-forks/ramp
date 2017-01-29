@@ -66,6 +66,7 @@ pub unsafe fn _mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
  *
  * Returns the highest limb of the product
  */
+#[inline]
 pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
@@ -78,12 +79,12 @@ pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
     dec $3
     jz 2f
 1:
-    mov %rdx, %r8
+    mov %rdx, $0
     add $$8, $1
     add $$8, $2
     mov ($2), %rax
     mul $7
-    add %r8, %rax
+    add $0, %rax
     adc $$0, %rdx
     mov %rax, ($1)
     dec $3
@@ -91,10 +92,9 @@ pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
 2:
     mov %rdx, $0
     "
-    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
     : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "r8", "rdx", "rax", "memory", "cc"
-    : "volatile", "alignstack");
+    : "rdx", "rax", "memory", "cc");
     Limb(r as _)
 }
 
@@ -149,7 +149,7 @@ pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     mul $7
     add %rax, ($1)
     adc $$0, %rdx
-    mov %rdx, %r8
+    mov %rdx, $0
     dec $3
     jz 2f
 1:
@@ -157,21 +157,19 @@ pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     add $$8, $2
     mov ($2), %rax
     mul $7
-    add %r8, %rax
+    add $0, %rax
     adc $$0, %rdx
-    mov %rdx, %r8
+    mov %rdx, $0
     add %rax, ($1)
-    adc $$0, %r8
+    adc $$0, $0
 
     dec $3
     jnz 1b
 2:
-    mov %r8, $0
     "
-    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
     : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "r8", "rdx", "rax", "memory", "cc"
-    : "volatile", "alignstack");
+    : "rdx", "rax", "memory", "cc");
     Limb(r as _)
 }
 
@@ -228,7 +226,7 @@ pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     mul $7
     sub %rax, ($1)
     adc $$0, %rdx
-    mov %rdx, %r8
+    mov %rdx, $0
     dec $3
     jz 2f
 1:
@@ -236,21 +234,19 @@ pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Lim
     add $$8, $2
     mov ($2), %rax
     mul $7
-    add %r8, %rax
+    add $0, %rax
     adc $$0, %rdx
-    mov %rdx, %r8
+    mov %rdx, $0
     sub %rax, ($1)
-    adc $$0, %r8
+    adc $$0, $0
 
     dec $3
     jnz 1b
 2:
-    mov %r8, $0
     "
-    : "=r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
+    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
     : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "r8", "rdx", "rax", "memory", "cc"
-    : "volatile", "alignstack");
+    : "rdx", "rax", "memory", "cc");
     Limb(r as _)
 }
 
@@ -282,6 +278,7 @@ pub unsafe fn mul(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
     }
 }
 
+#[inline(always)]
 unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
 
     *wp.offset(xs as isize) = ll::mul_1(wp, xp, xs, *yp);

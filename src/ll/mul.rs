@@ -136,7 +136,7 @@ unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  */
 #[inline]
 #[cfg(not(target_arch="x86_64"))]
-pub unsafe fn _addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     addmul_1_generic(wp, xp, n, vl)
 }
 

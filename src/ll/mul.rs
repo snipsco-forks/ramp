@@ -670,6 +670,7 @@ fn parse_hex(mut s:&str) -> Vec<Limb> {
 
 #[cfg(test)]
 #[test]
+#[cfg(target_pointer_width = "64")]
 fn test_parse_hex() {
     assert_eq!(parse_hex("0"), [0]);
     assert_eq!(parse_hex("bfffffffffffffffffffffffffffffc743cd1000000b4fffff"),

@@ -4839,11 +4839,6 @@ mod test {
     }
 
     #[bench]
-    fn bench_mul_1000_1000(b: &mut Bencher) {
-        bench_mul(b, 1000, 1000);
-    }
-
-    #[bench]
     fn bench_mul_50_1500(b: &mut Bencher) {
         bench_mul(b, 50, 1500);
     }

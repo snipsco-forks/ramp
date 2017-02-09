@@ -71,34 +71,96 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
+pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
-    let r:usize;
-    asm!("
-    mov ($2), %rax
-    mul $7
-    mov %rax, ($1)
-
-    dec $3
-    jz 2f
-1:
-    mov %rdx, $0
-    add $$8, $1
-    add $$8, $2
-    mov ($2), %rax
-    mul $7
-    add $0, %rax
-    adc $$0, %rdx
-    mov %rax, ($1)
-    dec $3
-    jnz 1b
-2:
-    mov %rdx, $0
-    "
-    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
-    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "rdx", "rax", "memory", "cc");
+    let mut r:usize = 0;
+    let mut n:u32 = n as _;
+    let mut w:*mut _ = &mut *wp.offset(0);
+    let mut x:*const _ = &*xp.offset(0);
+    match n % 4 {
+        0 => {},
+        1 =>
+        asm!("
+        movq ($2), %r8
+        mulxq %r8, %r8, $0
+        movq %r8, ($1)
+        add $$8, $2
+        add $$8, $1
+        sub $$1, $3
+        "
+        : "=&r"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "1"(w), "2"(x), "3"(n), "{rdx}"(vl.0)
+        : "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "memory", "cc"),
+        2 =>
+        asm!("
+        movq ($2), %r8
+        movq 8($2), %r9
+        mulxq %r8, %r8, %r12
+        mulxq %r9, %r9, $0
+        addq %r12, %r9
+        adcq $$0, $0
+        movq %r8, ($1)
+        movq %r9, 8($1)
+        add $$16, $2
+        add $$16, $1
+        sub $$2, $3
+        "
+        : "=&r"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "1"(w), "2"(x), "3"(n), "{rdx}"(vl.0)
+        : "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "memory", "cc"),
+        _ =>
+        asm!("
+        movq ($2), %r8
+        movq 8($2), %r9
+        movq 16($2), %r10
+        mulxq %r8, %r8, %r12
+        mulxq %r9, %r9, %r13
+        mulxq %r10, %r10, $0
+        addq %r12, %r9
+        adcq %r13, %r10
+        adcq $$0, $0
+        movq %r8, ($1)
+        movq %r9, 8($1)
+        movq %r10, 16($1)
+        add $$24, $2
+        add $$24, $1
+        sub $$3, $3
+        "
+        : "=&r"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "1"(w), "2"(x), "3"(n), "{rdx}"(vl.0)
+        : "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "memory", "cc"),
+    }
+    if n != 0 {
+        asm!("
+        1: 
+        movq ($2), %r8
+        movq 8($2), %r9
+        movq 16($2), %r10
+        movq 24($2), %r11
+        mulxq %r8, %r8, %r12
+        mulxq %r9, %r9, %r13
+        mulxq %r10, %r10, %r14
+        mulxq %r11, %r11, %r15
+        add $0, %r8
+        adc %r12, %r9
+        adc %r13, %r10
+        adc %r14, %r11
+        adc $$0, %r15
+        movq %r8, ($1)
+        movq %r9, 8($1)
+        movq %r10, 16($1)
+        movq %r11, 24($1)
+        movq %r15, $0
+        add $$32, $2
+        add $$32, $1
+        sub $$4, $3
+        jnz 1b
+        "
+        : "=&r"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "0"(r), "1"(w), "2"(x), "3"(n), "{rdx}"(vl.0)
+        : "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "memory", "cc");
+    }
     Limb(r as _)
 }
 
@@ -589,3 +651,61 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
 
     ll::incr(wp.offset((xl + xs) as isize), cy);
 }
+
+#[cfg(test)]
+fn parse_hex(mut s:&str) -> Vec<Limb> {
+    let mut res = vec!();
+    let group = Limb::BITS / 4; // 4 bits per hex figure
+    if s.len() % group != 0 {
+        res.push(Limb(usize::from_str_radix(&s[0..(s.len()%group)],16).unwrap() as _));
+        s = &s[s.len()%group..];
+    }
+    while s.len() > 0 {
+        res.push(Limb(usize::from_str_radix(&s[0..group],16).unwrap() as _));
+        s = &s[group..];
+    }
+    res.reverse();
+    res
+}
+
+#[cfg(test)]
+#[test]
+fn test_parse_hex() {
+    assert_eq!(parse_hex("0"), [0]);
+    assert_eq!(parse_hex("bfffffffffffffffffffffffffffffc743cd1000000b4fffff"),
+               [0xcd1000000b4fffff, 0xffffffffffffc743, 0xffffffffffffffff, 0xbf]);
+}
+
+#[cfg(test)]
+#[test]
+fn test_mul_1() {
+    unsafe {
+        for &(a_str, l, x_str, x_c) in &[
+            ("1", 2, "2", 0),
+            ("10000000000000000", 2, "20000000000000000", 0),
+            ("10000000000000001", 2, "20000000000000002", 0),
+            ("100000000000000010000000000000001", 2, "200000000000000020000000000000002", 0),
+            ("1000000000000000100000000000000010000000000000001", 2, "2000000000000000200000000000000020000000000000002", 0),
+            ("50000000000000004000000000000000300000000000000020000000000000001", 2, "a0000000000000008000000000000000600000000000000040000000000000002", 0),
+            ("8000000000000000", 2, "0", 1),
+            ("80000000000000000000000000000000", 2, "00000000000000000", 1),
+            ("800000000000000000000000000000000000000000000000", 2, "000000000000000000000000000000000", 1),
+            ("8000000000000000000000000000000000000000000000000000000000000000", 2, "0000000000000000000000000000000000000000000000000", 1),
+            ("bfffffffffffffffffffffffffffffc743cd1000000b4fffff", 2, "17fffffffffffffffffffffffffffff8e879a200000169ffffe", 0),
+            ("26a00000000000000000000000000000000000000000000b95500009dfffffffffff", 2, "4d40000000000000000000000000000000000000000000172aa00013bffffffffffe", 0),
+            ("203d00000000000000000000000000000000000000000000000000000000000000000000000000000000", 2, "407a00000000000000000000000000000000000000000000000000000000000000000000000000000000", 0),
+        ] {
+            let a_vec = parse_hex(a_str);
+            let x_vec = parse_hex(x_str);
+            let mut a2_vec = vec!(Limb(0); a_vec.len());
+            let a = Limbs::new(a_vec.as_ptr() as _, 0, a_vec.len() as i32);
+            let a2 = LimbsMut::new(a2_vec.as_ptr() as _, 0, a2_vec.len() as i32);
+            let Limb(carry) = mul_1(a2, a, a_vec.len() as _, Limb(l));
+            println!("a_vec:{:?}", a_vec);
+            println!("x_vec:{:?}", x_vec);
+            assert_eq!(x_c, carry, "wrong carry testing {} * {}", a_str, l);
+            assert_eq!(x_vec, a2_vec, "wrong result testing {} * {}", a_str, l);
+        }
+    }
+}
+

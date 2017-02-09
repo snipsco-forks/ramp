@@ -4747,6 +4747,54 @@ mod test {
         bench_add(b, 1000, 10);
     }
 
+    fn bench_mul_1limb(b: &mut Bencher, xs: usize) {
+        use rand::Rand;
+        let mut rng = rand::thread_rng();
+
+        let x = rng.gen_int(xs * Limb::BITS);
+        let y = usize::rand(&mut rng);
+
+        b.iter(|| {
+            let z = &x * y;
+            test::black_box(z);
+        });
+    }
+
+    #[bench]
+    fn bench_mul_1limb_1(b: &mut Bencher) {
+        bench_mul_1limb(b, 1);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_10(b: &mut Bencher) {
+        bench_mul_1limb(b, 10);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_20(b: &mut Bencher) {
+        bench_mul_1limb(b, 20);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_50(b: &mut Bencher) {
+        bench_mul_1limb(b, 50);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_100(b: &mut Bencher) {
+        bench_mul_1limb(b, 100);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_250(b: &mut Bencher) {
+        bench_mul_1limb(b, 250);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_1000(b: &mut Bencher) {
+        bench_mul_1limb(b, 1000);
+    }
+
     fn bench_mul(b: &mut Bencher, xs: usize, ys: usize) {
         let mut rng = rand::thread_rng();
 
@@ -4759,17 +4807,6 @@ mod test {
         });
     }
 
-    fn bench_pow(b: &mut Bencher, xs: usize, ys: usize) {
-        let mut rng = rand::thread_rng();
-
-        let x = rng.gen_int(xs * Limb::BITS);
-        let y : usize = rng.gen_range(0, ys);
-
-        b.iter(|| {
-            let z = &x.pow(y);
-            test::black_box(z);
-        });
-    }
 
     #[bench]
     fn bench_mul_1_1(b: &mut Bencher) {
@@ -4847,6 +4884,18 @@ mod test {
         bench_sqr(b, 1000);
     }
 
+    fn bench_pow(b: &mut Bencher, xs: usize, ys: usize) {
+        let mut rng = rand::thread_rng();
+
+        let x = rng.gen_int(xs * Limb::BITS);
+        let y : usize = rng.gen_range(0, ys);
+
+        b.iter(|| {
+            let z = &x.pow(y);
+            test::black_box(z);
+        });
+    }
+
     #[bench]
     fn bench_pow_1_1(b: &mut Bencher) {
         bench_pow(b, 1, 1);
@@ -4869,22 +4918,22 @@ mod test {
 
     #[bench]
     fn bench_pow_5_50(b: &mut Bencher) {
-        bench_mul(b, 5, 50);
+        bench_pow(b, 5, 50);
     }
 
     #[bench]
     fn bench_pow_250_250(b: &mut Bencher) {
-        bench_mul(b, 250, 250);
+        bench_pow(b, 250, 250);
     }
 
     #[bench]
     fn bench_pow_1000_1000(b: &mut Bencher) {
-        bench_mul(b, 1000, 1000);
+        bench_pow(b, 1000, 1000);
     }
 
     #[bench]
     fn bench_pow_50_1500(b: &mut Bencher) {
-        bench_mul(b, 50, 1500);
+        bench_pow(b, 50, 1500);
     }
 
     #[bench]

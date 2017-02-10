@@ -4771,28 +4771,18 @@ mod test {
     }
 
     #[bench]
-    fn bench_mul_1limb_20(b: &mut Bencher) {
-        bench_mul_1limb(b, 20);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_50(b: &mut Bencher) {
-        bench_mul_1limb(b, 50);
-    }
-
-    #[bench]
     fn bench_mul_1limb_100(b: &mut Bencher) {
         bench_mul_1limb(b, 100);
     }
 
     #[bench]
-    fn bench_mul_1limb_250(b: &mut Bencher) {
-        bench_mul_1limb(b, 250);
+    fn bench_mul_1limb_1000(b: &mut Bencher) {
+        bench_mul_1limb(b, 1000);
     }
 
     #[bench]
-    fn bench_mul_1limb_1000(b: &mut Bencher) {
-        bench_mul_1limb(b, 1000);
+    fn bench_mul_1limb_10000(b: &mut Bencher) {
+        bench_mul_1limb(b, 10000);
     }
 
     fn bench_mul(b: &mut Bencher, xs: usize, ys: usize) {

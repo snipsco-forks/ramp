@@ -712,14 +712,11 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
 
 #[cfg(test)]
 mod test {
-    use rand::{self, Rng};
-    use test::Bencher;
-    use ll::limb_ptr::{Limbs, LimbsMut};
-    use ll::limb::Limb;
-    use super::mul_1;
 
     #[test]
     fn test_mul_1() {
+        use ll::limb_ptr::{Limbs, LimbsMut};
+        use ll::limb::Limb;
         unsafe {
             let half_limb = 1 << (Limb::BITS-1);
             for &(a, l, x, x_c) in &[
@@ -739,52 +736,47 @@ mod test {
                 let limbs = Limbs::new(a.as_ptr() as _, 0, a.len() as i32);
                 let res_vec = vec!(0usize; a.len());
                 let res = LimbsMut::new(res_vec.as_ptr() as _, 0, a.len() as i32);
-                let Limb(carry) = mul_1(res, limbs, a.len() as _, Limb(l));
+                let Limb(carry) = super::mul_1(res, limbs, a.len() as _, Limb(l));
                 assert_eq!(x_c, carry, "wrong carry testing {:?} * {}", a, l);
                 assert_eq!(x, &*res_vec, "wrong result testing {:?} * {}", a, l);
             }
         }
     }
 
-    fn bench_mul_1limb(b: &mut Bencher, xs: usize) {
-        use rand::Rand;
-        let mut rng = rand::thread_rng();
-        unsafe {
+    macro_rules! one_bench {
+        ($size:expr, $name:ident, $what:expr) => {
+            #[bench]
+            fn $name(b: &mut ::test::Bencher) {
+                use rand::Rng;
+                use ll::limb::Limb;
+                use ll::limb_ptr::{Limbs, LimbsMut};
+                let mut rng = ::rand::thread_rng();
+                unsafe {
 
-            let vx:Vec<Limb> = (0..xs).map(|_| Limb(rng.next_u64() as _)).collect();
-            let mut vz = vec!(Limb(0); xs);
-            let x = Limbs::new(vx.as_ptr(), 0, xs as i32);
-            let y = usize::rand(&mut rng);
-            let z = LimbsMut::new(vz.as_mut_ptr(), 0, xs as i32);
+                    let vx:Vec<Limb> = (0..$size).map(|_| Limb(rng.next_u64() as _)).collect();
+                    let vy:Vec<Limb> = (0..$size).map(|_| Limb(rng.next_u64() as _)).collect();
+                    let mut vz:Vec<Limb> = (0..2*$size).map(|_| Limb(rng.next_u64() as _)).collect();
+                    let x = Limbs::new(vx.as_ptr(), 0, $size as i32);
+                    let y = Limbs::new(vy.as_ptr(), 0, $size as i32);
+                    let z = LimbsMut::new(vz.as_mut_ptr(), 0, 2*$size as i32);
 
-            b.iter(|| {
-                mul_1(z, x, xs as i32, Limb(y as _));
-            });
+                    b.iter(|| $what(z,x,$size,y));
+                }
+            }
         }
     }
 
-    #[bench]
-    fn bench_mul_1limb_1(b: &mut Bencher) {
-        bench_mul_1limb(b, 1);
+    macro_rules! ladder {
+        ($what:expr) => {
+            one_bench!(1, size_0001, $what);
+            one_bench!(8, size_0008, $what);
+            one_bench!(128, size_0128, $what);
+            one_bench!(1024, size_1024, $what);
+            one_bench!(8192, size_8192, $what);
+        }
     }
 
-    #[bench]
-    fn bench_mul_1limb_10(b: &mut Bencher) {
-        bench_mul_1limb(b, 10);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_100(b: &mut Bencher) {
-        bench_mul_1limb(b, 100);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_1000(b: &mut Bencher) {
-        bench_mul_1limb(b, 1000);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_10000(b: &mut Bencher) {
-        bench_mul_1limb(b, 10000);
-    }
+    mod mul_1 { ladder!(|z,x,xs,y:Limbs| super::super::mul_1(z, x, xs as i32, *y)); }
+    mod addmul_1 { ladder!(|z,x,xs,y:Limbs| super::super::addmul_1(z, x, xs as i32, *y)); }
+    mod mul_basecase { ladder!(|z,x,xs,y| super::super::mul_basecase(z, x, xs as i32, y, xs as i32)); }
 }

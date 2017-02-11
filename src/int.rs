@@ -4753,10 +4753,12 @@ mod test {
 
         let x = rng.gen_int(xs * Limb::BITS);
         let y = usize::rand(&mut rng);
+        let mut z = Int::with_capacity(xs as u32);
 
         b.iter(|| {
-            let z = &x * y;
-            test::black_box(z);
+            unsafe {
+                ll::mul_1(z.limbs_uninit(), x.limbs(), xs as i32, Limb(y as _));
+            }
         });
     }
 
@@ -4824,6 +4826,11 @@ mod test {
     }
 
     #[bench]
+    fn bench_mul_100_100(b: &mut Bencher) {
+        bench_mul(b, 100, 100);
+    }
+
+    #[bench]
     fn bench_mul_250_250(b: &mut Bencher) {
         bench_mul(b, 250, 250);
     }
@@ -4831,6 +4838,11 @@ mod test {
     #[bench]
     fn bench_mul_50_1500(b: &mut Bencher) {
         bench_mul(b, 50, 1500);
+    }
+
+    #[bench]
+    fn bench_mul_1000_1000(b: &mut Bencher) {
+        bench_mul(b, 1000, 1000);
     }
 
     fn bench_sqr(b: &mut Bencher, xs: usize) {

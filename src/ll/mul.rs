@@ -75,7 +75,7 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
     let mut r:usize = 0;
-    let mut n:u32 = n as _;
+    let mut n:i64 = n as _;
     let mut w:*mut _ = &mut *wp.offset(0);
     let mut x:*const _ = &*xp.offset(0);
     while n % 4 != 0 {
@@ -96,43 +96,46 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     }
     if n != 0 {
         asm!("
+        lea ($1,$3,8), $1
+        lea ($2,$3,8), $2
+        neg $3
+
+        .align 4
         1: 
-        movq ($2), %rax
-        mulq $8
-        mov %rdx, %r8
-        addq %rax, %r9
-        adcq $$0, %r8
-        movq %r9, ($1)
-
-        movq 8($2), %rax
-        mulq $8
+        mov ($2,$3,8), %rax
+        mul $8
+        add %rax, %r8
+        adc $$0, %rdx
+        mov 8($2,$3,8), %rax
+        mov %r8, ($1,$3,8)
         mov %rdx, %r9
-        addq %rax, %r8
-        adcq $$0, %r9
-        movq %r8, 8($1)
 
-        movq 16($2), %rax
-        mulq $8
+        mul $8
+        add %rax, %r9
+        adc $$0, %rdx
+        mov 16($2,$3,8), %rax
+        mov %r9, 8($1,$3,8)
+        mov %rdx, %r10
+
+        mul $8
+        add %rax, %r10
+        adc $$0, %rdx
+        mov 24($2,$3,8), %rax
+        mov %r10, 16($1,$3,8)
+        mov %rdx, %r11
+
+        mul $8
+        add %rax, %r11
+        adc $$0, %rdx
         mov %rdx, %r8
-        addq %rax, %r9
-        adcq $$0, %r8
-        movq %r9, 16($1)
+        mov %r11, 24($1,$3,8)
 
-        movq 24($2), %rax
-        mulq $8
-        mov %rdx, %r9
-        addq %rax, %r8
-        adcq $$0, %r9
-        movq %r8, 24($1)
-
-        add $$32, $2
-        add $$32, $1
-        sub $$4, $3
-        jnz 1b
+        add $$4, $3
+        js 1b
         "
-        : "=&{r9}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "=&{r8}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
         : "0"(r), "1"(w), "2"(x), "3"(n), "r"(vl.0)
-        : "r8", "rax", "rdx", "memory", "cc");
+        : "r9", "r10", "r11", "rax", "rdx", "memory", "cc");
     }
     Limb(r as _)
 }

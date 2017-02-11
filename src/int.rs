@@ -4747,46 +4747,6 @@ mod test {
         bench_add(b, 1000, 10);
     }
 
-    fn bench_mul_1limb(b: &mut Bencher, xs: usize) {
-        use rand::Rand;
-        let mut rng = rand::thread_rng();
-
-        let x = rng.gen_int(xs * Limb::BITS);
-        let y = usize::rand(&mut rng);
-        let mut z = Int::with_capacity(xs as u32);
-
-        b.iter(|| {
-            unsafe {
-                ll::mul_1(z.limbs_uninit(), x.limbs(), xs as i32, Limb(y as _));
-            }
-        });
-    }
-
-    #[bench]
-    fn bench_mul_1limb_1(b: &mut Bencher) {
-        bench_mul_1limb(b, 1);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_10(b: &mut Bencher) {
-        bench_mul_1limb(b, 10);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_100(b: &mut Bencher) {
-        bench_mul_1limb(b, 100);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_1000(b: &mut Bencher) {
-        bench_mul_1limb(b, 1000);
-    }
-
-    #[bench]
-    fn bench_mul_1limb_10000(b: &mut Bencher) {
-        bench_mul_1limb(b, 10000);
-    }
-
     fn bench_mul(b: &mut Bencher, xs: usize, ys: usize) {
         let mut rng = rand::thread_rng();
 
@@ -4798,7 +4758,6 @@ mod test {
             test::black_box(z);
         });
     }
-
 
     #[bench]
     fn bench_mul_1_1(b: &mut Bencher) {

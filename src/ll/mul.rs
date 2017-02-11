@@ -711,30 +711,80 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
 }
 
 #[cfg(test)]
-#[test]
-fn test_mul_1() {
-    unsafe {
-        let half_limb = 1 << (Limb::BITS-1);
-        for &(a, l, x, x_c) in &[
-            (&[1usize] as &[usize], 2, &[2usize] as &[usize], 0),
-            (&[0, 1], 2, &[0, 2], 0),
-            (&[1, 1], 2, &[2, 2], 0),
-            (&[1, 1, 1], 2, &[2, 2, 2], 0),
-            (&[1, 1, 1, 1], 2, &[2, 2, 2, 2], 0),
-            (&[1, 2, 3, 4, 5], 2, &[2, 4, 6, 8, 10], 0),
-            (&[half_limb], 2, &[0], 1),
-            (&[0, half_limb], 2, &[0, 0], 1),
-            (&[0, 0, half_limb], 2, &[0, 0, 0], 1),
-            (&[0, 0, 0, half_limb], 2, &[0, 0, 0, 0], 1),
-            (&[0, 0, 0, 0, half_limb], 2, &[0, 0, 0, 0, 0], 1),
-            (&[!0], !0, &[1], !0-1),
-        ] {
-            let limbs = Limbs::new(a.as_ptr() as _, 0, a.len() as i32);
-            let res_vec = vec!(0usize; a.len());
-            let res = LimbsMut::new(res_vec.as_ptr() as _, 0, a.len() as i32);
-            let Limb(carry) = mul_1(res, limbs, a.len() as _, Limb(l));
-            assert_eq!(x_c, carry, "wrong carry testing {:?} * {}", a, l);
-            assert_eq!(x, &*res_vec, "wrong result testing {:?} * {}", a, l);
+mod test {
+    use rand::{self, Rng};
+    use test::Bencher;
+    use ll::limb_ptr::{Limbs, LimbsMut};
+    use ll::limb::Limb;
+    use super::mul_1;
+
+    #[test]
+    fn test_mul_1() {
+        unsafe {
+            let half_limb = 1 << (Limb::BITS-1);
+            for &(a, l, x, x_c) in &[
+                (&[1usize] as &[usize], 2, &[2usize] as &[usize], 0),
+                (&[0, 1], 2, &[0, 2], 0),
+                (&[1, 1], 2, &[2, 2], 0),
+                (&[1, 1, 1], 2, &[2, 2, 2], 0),
+                (&[1, 1, 1, 1], 2, &[2, 2, 2, 2], 0),
+                (&[1, 2, 3, 4, 5], 2, &[2, 4, 6, 8, 10], 0),
+                (&[half_limb], 2, &[0], 1),
+                (&[0, half_limb], 2, &[0, 0], 1),
+                (&[0, 0, half_limb], 2, &[0, 0, 0], 1),
+                (&[0, 0, 0, half_limb], 2, &[0, 0, 0, 0], 1),
+                (&[0, 0, 0, 0, half_limb], 2, &[0, 0, 0, 0, 0], 1),
+                (&[!0], !0, &[1], !0-1),
+            ] {
+                let limbs = Limbs::new(a.as_ptr() as _, 0, a.len() as i32);
+                let res_vec = vec!(0usize; a.len());
+                let res = LimbsMut::new(res_vec.as_ptr() as _, 0, a.len() as i32);
+                let Limb(carry) = mul_1(res, limbs, a.len() as _, Limb(l));
+                assert_eq!(x_c, carry, "wrong carry testing {:?} * {}", a, l);
+                assert_eq!(x, &*res_vec, "wrong result testing {:?} * {}", a, l);
+            }
         }
+    }
+
+    fn bench_mul_1limb(b: &mut Bencher, xs: usize) {
+        use rand::Rand;
+        let mut rng = rand::thread_rng();
+        unsafe {
+
+            let vx:Vec<Limb> = (0..xs).map(|_| Limb(rng.next_u64() as _)).collect();
+            let mut vz = vec!(Limb(0); xs);
+            let x = Limbs::new(vx.as_ptr(), 0, xs as i32);
+            let y = usize::rand(&mut rng);
+            let z = LimbsMut::new(vz.as_mut_ptr(), 0, xs as i32);
+
+            b.iter(|| {
+                mul_1(z, x, xs as i32, Limb(y as _));
+            });
+        }
+    }
+
+    #[bench]
+    fn bench_mul_1limb_1(b: &mut Bencher) {
+        bench_mul_1limb(b, 1);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_10(b: &mut Bencher) {
+        bench_mul_1limb(b, 10);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_100(b: &mut Bencher) {
+        bench_mul_1limb(b, 100);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_1000(b: &mut Bencher) {
+        bench_mul_1limb(b, 1000);
+    }
+
+    #[bench]
+    fn bench_mul_1limb_10000(b: &mut Bencher) {
+        bench_mul_1limb(b, 10000);
     }
 }

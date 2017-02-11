@@ -185,36 +185,77 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn addmul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
+pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
-    let r:usize;
-    asm!("
-    mov ($2), %rax
-    mul $7
-    add %rax, ($1)
-    adc $$0, %rdx
-    mov %rdx, $0
-    dec $3
-    jz 2f
-1:
-    add $$8, $1
-    add $$8, $2
-    mov ($2), %rax
-    mul $7
-    add $0, %rax
-    adc $$0, %rdx
-    mov %rdx, $0
-    add %rax, ($1)
-    adc $$0, $0
+    let mut r:usize = 0;
+    let mut n:i64 = n as _;
+    let mut w:*mut _ = &mut *wp.offset(0);
+    let mut x:*const _ = &*xp.offset(0);
+    while n % 4 != 0 {
+        asm!("
+        mov ($2), %rax
+        mov %rdx, %r8
+        mul $8
+        add %r8, %rax
+        adc $$0, %rdx
+        add %rax, ($1)
+        adc $$0, %rdx
+        add $$8, $2
+        add $$8, $1
+        sub $$1, $3
+        "
+        : "=&{rdx}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "0"(r), "1"(w), "2"(x), "3"(n), "r"(vl.0)
+        : "r8", "rax", "memory", "cc");
+    }
+    if n != 0 {
+        asm!("
+        lea ($1,$3,8), $1
+        lea ($2,$3,8), $2
+        neg $3
 
-    dec $3
-    jnz 1b
-2:
-    "
-    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
-    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "rdx", "rax", "memory", "cc");
+        .align 4
+        1: 
+        mov ($2,$3,8), %rax
+        mul $8
+        add %rax, %r8
+        adc $$0, %rdx
+        mov 8($2,$3,8), %rax
+        add %r8, ($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r9
+
+        mul $8
+        add %rax, %r9
+        adc $$0, %rdx
+        mov 16($2,$3,8), %rax
+        add %r9, 8($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r10
+
+        mul $8
+        add %rax, %r10
+        adc $$0, %rdx
+        mov 24($2,$3,8), %rax
+        add %r10, 16($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r11
+
+        mul $8
+        add %rax, %r11
+        adc $$0, %rdx
+        add %r11, 24($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r8
+
+        add $$4, $3
+        js 1b
+        "
+        : "=&{r8}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "0"(r), "1"(w), "2"(x), "3"(n), "r"(vl.0)
+        : "r9", "r10", "r11", "rax", "rdx", "memory", "cc");
+    }
     Limb(r as _)
 }
 
@@ -264,36 +305,77 @@ pub unsafe fn submul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn submul_1(mut wp: LimbsMut, xp: Limbs, mut n: i32, vl: Limb) -> Limb {
+pub unsafe fn submul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
-    let r:usize;
-    asm!("
-    mov ($2), %rax
-    mul $7
-    sub %rax, ($1)
-    adc $$0, %rdx
-    mov %rdx, $0
-    dec $3
-    jz 2f
-1:
-    add $$8, $1
-    add $$8, $2
-    mov ($2), %rax
-    mul $7
-    add $0, %rax
-    adc $$0, %rdx
-    mov %rdx, $0
-    sub %rax, ($1)
-    adc $$0, $0
+    let mut r:usize = 0;
+    let mut n:i64 = n as _;
+    let mut w:*mut _ = &mut *wp.offset(0);
+    let mut x:*const _ = &*xp.offset(0);
+    while n % 4 != 0 {
+        asm!("
+        mov ($2), %rax
+        mov %rdx, %r8
+        mul $8
+        add %r8, %rax
+        adc $$0, %rdx
+        sub %rax, ($1)
+        adc $$0, %rdx
+        add $$8, $2
+        add $$8, $1
+        sub $$1, $3
+        "
+        : "=&{rdx}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "0"(r), "1"(w), "2"(x), "3"(n), "r"(vl.0)
+        : "r8", "rax", "memory", "cc");
+    }
+    if n != 0 {
+        asm!("
+        lea ($1,$3,8), $1
+        lea ($2,$3,8), $2
+        neg $3
 
-    dec $3
-    jnz 1b
-2:
-    "
-    : "=&r"(r), "=&r"(&mut *wp), "=&r"(&*xp), "=&r"(n)
-    : "1"(&mut *wp), "2"(&*xp), "3"(n), "r"(vl.0)
-    : "rdx", "rax", "memory", "cc");
+        .align 4
+        1: 
+        mov ($2,$3,8), %rax
+        mul $8
+        add %rax, %r8
+        adc $$0, %rdx
+        mov 8($2,$3,8), %rax
+        sub %r8, ($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r9
+
+        mul $8
+        add %rax, %r9
+        adc $$0, %rdx
+        mov 16($2,$3,8), %rax
+        sub %r9, 8($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r10
+
+        mul $8
+        add %rax, %r10
+        adc $$0, %rdx
+        mov 24($2,$3,8), %rax
+        sub %r10, 16($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r11
+
+        mul $8
+        add %rax, %r11
+        adc $$0, %rdx
+        sub %r11, 24($1,$3,8)
+        adc $$0, %rdx
+        mov %rdx, %r8
+
+        add $$4, $3
+        js 1b
+        "
+        : "=&{r8}"(r), "=&r"(w), "=&r"(x), "=&r"(n)
+        : "0"(r), "1"(w), "2"(x), "3"(n), "r"(vl.0)
+        : "r9", "r10", "r11", "rax", "rdx", "memory", "cc");
+    }
     Limb(r as _)
 }
 

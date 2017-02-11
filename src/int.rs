@@ -4912,16 +4912,6 @@ mod test {
     }
 
     #[bench]
-    fn bench_pow_1000_1000(b: &mut Bencher) {
-        bench_pow(b, 1000, 1000);
-    }
-
-    #[bench]
-    fn bench_pow_50_1500(b: &mut Bencher) {
-        bench_pow(b, 50, 1500);
-    }
-
-    #[bench]
     fn bench_factorial_100(b: &mut Bencher) {
         b.iter(|| {
             let mut i = Int::from(1);

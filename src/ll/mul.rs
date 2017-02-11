@@ -629,62 +629,30 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
 }
 
 #[cfg(test)]
-fn parse_hex(mut s:&str) -> Vec<Limb> {
-    let mut res = vec!();
-    let group = Limb::BITS / 4; // 4 bits per hex figure
-    if s.len() % group != 0 {
-        res.push(Limb(usize::from_str_radix(&s[0..(s.len()%group)],16).unwrap() as _));
-        s = &s[s.len()%group..];
-    }
-    while s.len() > 0 {
-        res.push(Limb(usize::from_str_radix(&s[0..group],16).unwrap() as _));
-        s = &s[group..];
-    }
-    res.reverse();
-    res
-}
-
-#[cfg(test)]
 #[test]
-#[cfg(target_pointer_width = "64")]
-fn test_parse_hex() {
-    assert_eq!(parse_hex("0"), [0]);
-    assert_eq!(parse_hex("bfffffffffffffffffffffffffffffc743cd1000000b4fffff"),
-               [0xcd1000000b4fffff, 0xffffffffffffc743, 0xffffffffffffffff, 0xbf]);
-}
-
-#[cfg(test)]
-#[test]
-#[cfg(target_pointer_width = "64")]
 fn test_mul_1() {
     unsafe {
-        for &(a_str, l, x_str, x_c) in &[
-            ("1", 2, "2", 0),
-            ("10000000000000000", 2, "20000000000000000", 0),
-            ("10000000000000001", 2, "20000000000000002", 0),
-            ("100000000000000010000000000000001", 2, "200000000000000020000000000000002", 0),
-            ("1000000000000000100000000000000010000000000000001", 2, "2000000000000000200000000000000020000000000000002", 0),
-            ("50000000000000004000000000000000300000000000000020000000000000001", 2, "a0000000000000008000000000000000600000000000000040000000000000002", 0),
-            ("8000000000000000", 2, "0", 1),
-            ("80000000000000000000000000000000", 2, "00000000000000000", 1),
-            ("80000000000000008000000000000000", 2, "10000000000000000", 1),
-            ("f6baa12c9000000000", 2, "1ed7542592000000000", 0),
-            ("800000000000000000000000000000000000000000000000", 2, "000000000000000000000000000000000", 1),
-            ("8000000000000000000000000000000000000000000000000000000000000000", 2, "0000000000000000000000000000000000000000000000000", 1),
-            ("bfffffffffffffffffffffffffffffc743cd1000000b4fffff", 2, "17fffffffffffffffffffffffffffff8e879a200000169ffffe", 0),
-            ("26a00000000000000000000000000000000000000000000b95500009dfffffffffff", 2, "4d40000000000000000000000000000000000000000000172aa00013bffffffffffe", 0),
-            ("203d00000000000000000000000000000000000000000000000000000000000000000000000000000000", 2, "407a00000000000000000000000000000000000000000000000000000000000000000000000000000000", 0),
+        let half_limb = 1 << (Limb::BITS-1);
+        for &(a, l, x, x_c) in &[
+            (&[1usize] as &[usize], 2, &[2usize] as &[usize], 0),
+            (&[0, 1], 2, &[0, 2], 0),
+            (&[1, 1], 2, &[2, 2], 0),
+            (&[1, 1, 1], 2, &[2, 2, 2], 0),
+            (&[1, 1, 1, 1], 2, &[2, 2, 2, 2], 0),
+            (&[1, 2, 3, 4, 5], 2, &[2, 4, 6, 8, 10], 0),
+            (&[half_limb], 2, &[0], 1),
+            (&[0, half_limb], 2, &[0, 0], 1),
+            (&[0, 0, half_limb], 2, &[0, 0, 0], 1),
+            (&[0, 0, 0, half_limb], 2, &[0, 0, 0, 0], 1),
+            (&[0, 0, 0, 0, half_limb], 2, &[0, 0, 0, 0, 0], 1),
+            (&[!0], !0, &[1], !0-1),
         ] {
-            let a_vec = parse_hex(a_str);
-            let x_vec = parse_hex(x_str);
-            let a2_vec = vec!(Limb(0); a_vec.len());
-            let a = Limbs::new(a_vec.as_ptr() as _, 0, a_vec.len() as i32);
-            let a2 = LimbsMut::new(a2_vec.as_ptr() as _, 0, a2_vec.len() as i32);
-            let Limb(carry) = mul_1(a2, a, a_vec.len() as _, Limb(l));
-            println!("a_vec:{:?}", a_vec);
-            println!("x_vec:{:?}", x_vec);
-            assert_eq!(x_c, carry, "wrong carry testing {} * {}", a_str, l);
-            assert_eq!(x_vec, a2_vec, "wrong result testing {} * {}", a_str, l);
+            let limbs = Limbs::new(a.as_ptr() as _, 0, a.len() as i32);
+            let res_vec = vec!(0usize; a.len());
+            let res = LimbsMut::new(res_vec.as_ptr() as _, 0, a.len() as i32);
+            let Limb(carry) = mul_1(res, limbs, a.len() as _, Limb(l));
+            assert_eq!(x_c, carry, "wrong carry testing {:?} * {}", a, l);
+            assert_eq!(x, &*res_vec, "wrong result testing {:?} * {}", a, l);
         }
     }
 }

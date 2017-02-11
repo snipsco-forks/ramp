@@ -655,6 +655,7 @@ fn test_parse_hex() {
 
 #[cfg(test)]
 #[test]
+#[cfg(target_pointer_width = "64")]
 fn test_mul_1() {
     unsafe {
         for &(a_str, l, x_str, x_c) in &[

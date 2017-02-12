@@ -743,7 +743,7 @@ mod test {
         }
     }
 
-    macro_rules! one_bench {
+    macro_rules! one_bench_named {
         ($size:expr, $name:ident, $what:expr) => {
             #[bench]
             fn $name(b: &mut ::test::Bencher) {
@@ -766,15 +766,22 @@ mod test {
         }
     }
 
-    macro_rules! ladder {
-        ($what:expr) => {
-            one_bench!(1, size_0001, $what);
-            one_bench!(8, size_0008, $what);
-            one_bench!(128, size_0128, $what);
-            one_bench!(1024, size_1024, $what);
-            one_bench!(8192, size_8192, $what);
-        }
-    }
+    macro_rules! ladder { ($what:expr) => {
+        one_bench_named!(1, size_0001, $what);
+        one_bench_named!(2, size_0002, $what);
+        one_bench_named!(4, size_0004, $what);
+        one_bench_named!(8, size_0008, $what);
+        one_bench_named!(16, size_0016, $what);
+        one_bench_named!(32, size_0032, $what);
+        one_bench_named!(64, size_0064, $what);
+        one_bench_named!(128, size_0128, $what);
+        one_bench_named!(256, size_0256, $what);
+        one_bench_named!(512, size_0512, $what);
+        one_bench_named!(1024, size_1024, $what);
+        one_bench_named!(2048, size_2048, $what);
+        one_bench_named!(4096, size_4096, $what);
+        one_bench_named!(8148, size_8148, $what);
+    }}
 
     mod mul_1 { ladder!(|z,x,xs,y:Limbs| super::super::mul_1(z, x, xs as i32, *y)); }
     mod addmul_1 { ladder!(|z,x,xs,y:Limbs| super::super::addmul_1(z, x, xs as i32, *y)); }

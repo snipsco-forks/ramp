@@ -54,7 +54,7 @@ unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -
  * Returns the highest limb of the product
  */
 #[inline]
-//#[cfg(not(target_arch="x86_64"))]
+#[cfg(not(target_arch="x86_64"))]
 pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
@@ -71,7 +71,7 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn _mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
     let mut r:usize = 0;
@@ -173,7 +173,7 @@ unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
 #[inline]
-//#[cfg(not(target_arch="x86_64"))]
+#[cfg(not(target_arch="x86_64"))]
 pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     addmul_1_generic(wp, xp, n, vl)
 }
@@ -185,7 +185,7 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn _addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
     let mut r:usize = 0;

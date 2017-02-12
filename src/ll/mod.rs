@@ -81,7 +81,7 @@ use std::intrinsics::abort;
 use std::cmp::Ordering;
 
 mod addsub;
-mod mul;
+pub mod mul;
 mod div;
 mod bit;
 mod gcd;

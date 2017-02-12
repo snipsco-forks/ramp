@@ -54,7 +54,7 @@ unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -
  * Returns the highest limb of the product
  */
 #[inline]
-#[cfg(not(target_arch="x86_64"))]
+//#[cfg(not(target_arch="x86_64"))]
 pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
@@ -71,7 +71,7 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn _mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
     let mut r:usize = 0;
@@ -173,7 +173,7 @@ unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
 #[inline]
-#[cfg(not(target_arch="x86_64"))]
+//#[cfg(not(target_arch="x86_64"))]
 pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     addmul_1_generic(wp, xp, n, vl)
 }
@@ -185,7 +185,7 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 #[inline]
 #[cfg(target_arch="x86_64")]
 #[allow(unused_assignments)]
-pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
+pub unsafe fn _addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
     let mut r:usize = 0;
@@ -258,7 +258,7 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     }
     Limb(r as _)
 }
-
+/*
 #[inline(always)]
 #[allow(dead_code)]
 pub unsafe fn _addmul_2(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl1: Limb, vl2:Limb) -> (Limb, Limb) {
@@ -336,6 +336,7 @@ pub unsafe fn addmul_2(wp: LimbsMut, xp: Limbs, n: i32, vl1: Limb, vl2:Limb) -> 
     : "r8", "rax", "rbx", "rdx", "memory", "cc");
     (Limb(carry_1), Limb(carry_2))
 }
+*/
 
 #[inline]
 #[allow(dead_code)]
@@ -492,7 +493,7 @@ unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut 
     yp = yp.offset(1);
     ys -= 1;
 
-    while ys > 1 {
+    while ys > 0 {
         *wp.offset(xs as isize) = ll::addmul_1(wp, xp, xs, *yp);
         wp = wp.offset(1);
         yp = yp.offset(1);
@@ -500,6 +501,7 @@ unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut 
     }
 }
 
+/*
 #[inline(always)]
 unsafe fn mul_basecase_addmul_2(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
     *wp.offset(xs as isize) = ll::mul_1(wp, xp, xs, *yp);
@@ -520,7 +522,7 @@ unsafe fn mul_basecase_addmul_2(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Li
         *wp.offset(xs as isize) = ll::addmul_1(wp, xp, xs, *yp);
     }
 }
-
+*/
 // Helper fn
 #[inline(always)]
 pub unsafe fn mul_rec(wp: LimbsMut,
@@ -840,6 +842,7 @@ mod test {
         }
     }
 
+    /*
     #[test]
     fn test_addmul_2() {
         use super::addmul_2;
@@ -871,6 +874,7 @@ mod test {
             }
         }
     }
+    */
 
     #[test]
     fn test_mul_basecase() {
@@ -940,6 +944,6 @@ mod test {
 
     mod mul_1 { ladder!(|z,x,xs,y:Limbs| super::super::mul_1(z, x, xs as i32, *y)); }
     mod addmul_1 { ladder!(|z,x,xs,y:Limbs| super::super::addmul_1(z, x, xs as i32, *y)); }
-    mod addmul_2 { ladder!(|z,x,xs,y:Limbs| super::super::addmul_2(z, x, xs as i32, *y, *y.offset(1))); }
+//    mod addmul_2 { ladder!(|z,x,xs,y:Limbs| super::super::addmul_2(z, x, xs as i32, *y, *y.offset(1))); }
     mod mul_basecase { ladder!(|z,x,xs,y| super::super::mul_basecase(z, x, xs as i32, y, xs as i32)); }
 }

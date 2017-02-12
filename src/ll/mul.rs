@@ -493,6 +493,21 @@ unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut 
     ys -= 1;
 
     while ys > 1 {
+        *wp.offset(xs as isize) = ll::addmul_1(wp, xp, xs, *yp);
+        wp = wp.offset(1);
+        yp = yp.offset(1);
+        ys -= 1;
+    }
+}
+
+#[inline(always)]
+unsafe fn mul_basecase_addmul_2(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
+    *wp.offset(xs as isize) = ll::mul_1(wp, xp, xs, *yp);
+    wp = wp.offset(1);
+    yp = yp.offset(1);
+    ys -= 1;
+
+    while ys > 1 {
         let (c1, c2) = addmul_2(wp, xp, xs, *yp, *yp.offset(1));
         *wp.offset(xs as isize) = c1;
         *wp.offset(xs as isize + 1) = c2;

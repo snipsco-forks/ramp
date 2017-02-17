@@ -81,7 +81,11 @@ use std::intrinsics::abort;
 use std::cmp::Ordering;
 
 mod addsub;
+
+#[cfg(not(feature="speed"))]
 mod mul;
+#[cfg(feature="speed")]
+pub mod mul;
 mod div;
 mod bit;
 mod gcd;

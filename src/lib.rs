@@ -30,7 +30,11 @@ extern crate num_integer;
 extern crate num_traits;
 
 pub mod ll;
+
+#[cfg(not(feature="speed"))]
 mod mem;
+#[cfg(feature="speed")]
+pub mod mem;
 
 pub mod traits;
 pub mod int;

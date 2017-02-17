@@ -19,6 +19,7 @@ path = "src/lib.rs"
 unstable = [] # To keep travis-cargo happy
 fallbacks = []
 asm = []
+speed = ["clap"]
 
 full-quickcheck = []
 
@@ -29,6 +30,7 @@ hamming = "0.1"
 num-traits = "0.1.35"
 num-integer = "0.1.32"
 rust-gmp = { version = "0.2", optional = true }
+clap = { version="2.2", optional = true }
 
 [build-dependencies]
 num-bigint = "0.1.35"

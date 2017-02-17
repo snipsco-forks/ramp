@@ -209,7 +209,7 @@ pub unsafe fn mul(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
     }
 }
 
-unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
+pub unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
 
     *wp.offset(xs as isize) = ll::mul_1(wp, xp, xs, *yp);
     wp = wp.offset(1);
@@ -240,7 +240,7 @@ pub unsafe fn mul_rec(wp: LimbsMut,
     }
 }
 
-unsafe fn mul_toom22(wp: LimbsMut,
+pub unsafe fn mul_toom22(wp: LimbsMut,
                      xp: Limbs, xs: i32,
                      yp: Limbs, ys: i32,
                      scratch: LimbsMut) {

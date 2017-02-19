@@ -26,6 +26,7 @@ use ll::limb_ptr::{Limbs, LimbsMut};
 const TOOM22_THRESHOLD : i32 = 20;
 
 #[allow(dead_code)]
+#[inline(always)]
 unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {
     let mut cl = Limb(0);
     loop {
@@ -53,7 +54,7 @@ unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -
  * Returns the highest limb of the product
  */
 #[cfg(not(asm))]
-#[inline]
+#[inline(always)]
 pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
@@ -68,7 +69,7 @@ pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
  * Returns the highest limb of the product
  */
 #[cfg(asm)]
-#[inline]
+#[inline(always)]
 pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_incr(wp, n, xp, n));
@@ -80,6 +81,7 @@ pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
 }
 
 #[allow(dead_code)]
+#[inline(always)]
 unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {
     debug_assert!(n > 0);
     debug_assert!(same_or_separate(wp, n, xp, n));
@@ -111,7 +113,7 @@ unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
 #[cfg(not(asm))]
-#[inline]
+#[inline(always)]
 pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     addmul_1_generic(wp, xp, n, vl)
 }
@@ -121,7 +123,7 @@ pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
  * least-significant digits of `wp`. Returns the highest limb of the result.
  */
 #[cfg(asm)]
-#[inline]
+#[inline(always)]
 pub unsafe fn addmul_1(mut wp: LimbsMut, xp:  Limbs, n: i32, vl: Limb) -> Limb {
     extern "C" {
         fn ramp_addmul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;

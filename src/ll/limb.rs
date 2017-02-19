@@ -431,6 +431,7 @@ impl fmt::Display for Limb {
     }
 }
 
+#[inline(always)]
 pub fn mul(u: Limb, v: Limb) -> (Limb, Limb) {
     if_cfg! {
         #[cfg(all(not(feature="fallbacks"),target_arch="x86_64"))]

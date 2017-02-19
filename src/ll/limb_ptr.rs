@@ -48,7 +48,7 @@ macro_rules! api {
 
             /// Move `self` to point to the `x`th Limbs from the
             /// current location.
-            #[inline]
+            #[inline(always)]
             pub unsafe fn offset(self, x: isize) -> $ty {
                 debug_assert!(self.bounds.offset_valid(self.ptr as usize, x),
                               "invalid offset of {:?} by {}, which should be in {:?}", self.ptr, x, self.bounds);
@@ -78,6 +78,7 @@ macro_rules! api {
 
         impl ops::Deref for $ty {
             type Target = Limb;
+            #[inline(always)]
             fn deref(&self) -> &Limb {
                 debug_assert!(self.bounds.can_deref(self.ptr as usize),
                               "invalid deref of {:?}, which should be in {:?}", self.ptr, self.bounds);
@@ -100,6 +101,7 @@ impl LimbsMut {
     }
 }
 impl ops::DerefMut for LimbsMut {
+    #[inline(always)]
     fn deref_mut(&mut self) -> &mut Limb {
         debug_assert!(self.bounds.can_deref(self.ptr as usize),
                       "invalid mut deref of {:?}, which should be in {:?}", self.ptr, self.bounds);
@@ -143,9 +145,9 @@ impl Bounds {
 #[cfg(not(debug_assertions))]
 impl Bounds {
     fn new(_ptr: usize, _start: i32, _end: i32) -> Bounds { Bounds }
-    #[inline]
+    #[inline(always)]
     fn can_deref(self, _ptr: usize) -> bool { true }
-    #[inline]
+    #[inline(always)]
     fn offset_valid(self, _ptr: usize, _offset: isize) -> bool { true }
 }
 impl fmt::Debug for Bounds {

@@ -23,6 +23,9 @@ use mem;
 
 use ll::limb_ptr::{Limbs, LimbsMut};
 
+pub mod addmul_1;
+pub use self::addmul_1::addmul_1;
+
 const TOOM22_THRESHOLD : i32 = 20;
 
 #[allow(dead_code)]
@@ -80,57 +83,6 @@ pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
     ramp_mul_1(&mut *wp, &*xp, n, vl)
 }
 
-#[allow(dead_code)]
-#[inline(always)]
-unsafe fn addmul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {
-    debug_assert!(n > 0);
-    debug_assert!(same_or_separate(wp, n, xp, n));
-
-    let mut cl = Limb(0);
-    loop {
-        let xl = *xp;
-        let (hpl, lpl) = xl.mul_hilo(vl);
-        let (lpl, carry) = lpl.add_overflow(cl);
-        cl = hpl + carry;
-
-        let (lpl, carry) = (*wp).add_overflow(lpl);
-        cl = cl + carry;
-
-        *wp = lpl;
-
-        n -= 1;
-        if n == 0 { break; }
-
-        wp = wp.offset(1);
-        xp = xp.offset(1);
-    }
-
-    return cl;
-}
-
-/**
- * Multiplies the `n` least-signficiant digits of `xp` by `vl` and adds them to the `n`
- * least-significant digits of `wp`. Returns the highest limb of the result.
- */
-#[cfg(not(asm))]
-#[inline(always)]
-pub unsafe fn addmul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
-    addmul_1_generic(wp, xp, n, vl)
-}
-
-/**
- * Multiplies the `n` least-signficiant digits of `xp` by `vl` and adds them to the `n`
- * least-significant digits of `wp`. Returns the highest limb of the result.
- */
-#[cfg(asm)]
-#[inline(always)]
-pub unsafe fn addmul_1(mut wp: LimbsMut, xp:  Limbs, n: i32, vl: Limb) -> Limb {
-    extern "C" {
-        fn ramp_addmul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;
-    }
-
-    ramp_addmul_1(&mut *wp, &*xp, n, vl)
-}
 
 #[allow(dead_code)]
 unsafe fn submul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {
@@ -511,4 +463,36 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
     cy = cy + ll::add_n(wp.offset(xl as isize), wp.offset(xl as isize).as_const(), z1.as_const(), xs);
 
     ll::incr(wp.offset((xl + xs) as isize), cy);
+}
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn test_mul_basecase() {
+        use ll::limb_ptr::{Limbs, LimbsMut};
+        unsafe {
+            for &(x, y, exp) in &[
+                (&[0usize, 0] as &[usize], &[0usize, 0] as &[usize], &[0usize, 0, 0, 0] as &[usize]),
+                (&[1, 0], &[1, 0], &[1usize, 0, 0, 0]),
+                (&[!0, !0], &[1, 0], &[!0, !0, 0, 0]),
+                (&[!0, !0], &[!0, !0], &[1, 0, !0-1, !0]),
+                (&[!0, !0, !0], &[!0, !0, !0], &[1, 0, 0, !0-1, !0, !0]),
+                (&[1], &[1, 2, 3], &[1, 2, 3, 0]),
+                (&[1], &[1, 2, 3, 4], &[1, 2, 3, 4, 0]),
+                (&[0, 2], &[1, 2, 3, 4], &[0, 2, 4, 6, 8, 0]),
+            ] {
+                let x_vec = x.to_vec();
+                let y_vec = y.to_vec();
+                let w_vec = vec!(0usize; x.len()+y.len());
+                let x_limbs = Limbs::new(x_vec.as_ptr() as _, 0, x.len() as i32);
+                let y_limbs = Limbs::new(y_vec.as_ptr() as _, 0, y.len() as i32);
+                let w_limbs = LimbsMut::new(w_vec.as_ptr() as _, 0, w_vec.len() as i32);
+                super::mul_basecase(w_limbs, x_limbs, x.len() as _, y_limbs, y.len() as _);
+                assert_eq!(exp, &*w_vec,
+                           "wrong result testing {:?}*{:?}={:?} ", x, y, w_vec);
+            }
+        }
+    }
+
 }

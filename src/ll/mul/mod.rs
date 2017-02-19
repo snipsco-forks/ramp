@@ -18,71 +18,17 @@ use std::cmp::Ordering;
 
 use ll;
 use ll::limb::Limb;
-use super::{overlap, same_or_separate, same_or_incr};
+use super::{overlap, same_or_separate};
 use mem;
 
 use ll::limb_ptr::{Limbs, LimbsMut};
 
 pub mod addmul_1;
+pub mod mul_1;
 pub use self::addmul_1::addmul_1;
+pub use self::mul_1::mul_1;
 
 const TOOM22_THRESHOLD : i32 = 20;
-
-#[allow(dead_code)]
-#[inline(always)]
-unsafe fn mul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {
-    let mut cl = Limb(0);
-    loop {
-        let xl = *xp;
-        let (hpl, lpl) = xl.mul_hilo(vl);
-        let (lpl, carry) = lpl.add_overflow(cl);
-        cl = hpl + carry;
-
-        *wp = lpl;
-
-        n -= 1;
-        if n == 0 { break; }
-
-        wp = wp.offset(1);
-        xp = xp.offset(1);
-    }
-
-    return cl;
-}
-
-/**
- * Multiplies the `n` least-significant limbs of `xp` by `vl` storing the `n` least-significant
- * limbs of the product in `{wp, n}`.
- *
- * Returns the highest limb of the product
- */
-#[cfg(not(asm))]
-#[inline(always)]
-pub unsafe fn mul_1(wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
-    debug_assert!(n > 0);
-    debug_assert!(same_or_incr(wp, n, xp, n));
-
-    mul_1_generic(wp, xp, n, vl)
-}
-
-/**
- * Multiplies the `n` least-significant limbs of `xp` by `vl` storing the `n` least-significant
- * limbs of the product in `{wp, n}`.
- *
- * Returns the highest limb of the product
- */
-#[cfg(asm)]
-#[inline(always)]
-pub unsafe fn mul_1(mut wp: LimbsMut, xp: Limbs, n: i32, vl: Limb) -> Limb {
-    debug_assert!(n > 0);
-    debug_assert!(same_or_incr(wp, n, xp, n));
-    extern "C" {
-        fn ramp_mul_1(wp: *mut Limb, xp: *const Limb, n: i32, vl: Limb) -> Limb;
-    }
-
-    ramp_mul_1(&mut *wp, &*xp, n, vl)
-}
-
 
 #[allow(dead_code)]
 unsafe fn submul_1_generic(mut wp: LimbsMut, mut xp: Limbs, mut n: i32, vl: Limb) -> Limb {

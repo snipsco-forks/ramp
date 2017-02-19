@@ -90,6 +90,8 @@ mod run {
         routine_size_ns!(h, mul_toom22, |wp,xp,xn,yp,s| ::ramp::ll::mul::mul_toom22(wp,xp,xn,yp,xn,s));
         routine_size_ns!(h, mul_basecase, |wp,xp,xn,yp,_| ::ramp::ll::mul::mul_basecase(wp,xp,xn,yp,xn));
         routine_size_ns!(h, mul_1, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::mul_1(wp,xp,xn,*yp));
+        routine_size_ns!(h, mul_1_generic, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::mul_1::generic(wp,xp,xn,*yp));
+        routine_size_ns!(h, mul_1_generic_unroll_4, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::mul_1::generic_unroll_4(wp,xp,xn,*yp));
         routine_size_ns!(h, addmul_1, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::addmul_1(wp,xp,xn,*yp));
         routine_size_ns!(h, addmul_1_generic, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::addmul_1::generic(wp,xp,xn,*yp));
         routine_size_ns!(h, addmul_1_generic_unroll_4, |wp,xp,xn,yp:Limbs,_| ::ramp::ll::mul::addmul_1::generic_unroll_4(wp,xp,xn,*yp));

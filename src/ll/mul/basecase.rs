@@ -57,7 +57,7 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
                 xorq %r11, %r11             // r11 <- 0 (overflow)
                 mov (%r10), %rbx            // rbx <- yi
                 mov %r8, %rcx               // rcx <- xs
-            5:                              // initial mul loop top (rcx)
+            1:                              // initial mul loop top (rcx)
                 mov (%rsi), %rax
                 mulq %rbx
                 add %r11, %rax
@@ -68,7 +68,7 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
                 add $$8, %rsi
                 add $$8, %rdi
                 dec %rcx
-                jnz 5b                      // end of mul loop
+                jnz 1b                      // end of mul loop
 
                 mov %r11, (%rdi)            // write final word
 
@@ -80,24 +80,59 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
                 addq $$8, %rdi              // offset rdi
                 addq $$8, %r10              // offset r10
                 dec %r9
-                jz 6f
+                jz 3f
 
-            4:                              // outer loop top (r9/ys)
+            20:                             // outer loop top (r9/ys)
                 xorq %r11, %r11             // r11 <- 0 (overflow)
                 mov %r8, %rcx               // rcx <- xs
                 mov (%r10), %rbx            // rbx <- yi
 
+                test $$0xfffffffffffffffc, %rcx
+                jz 24f
+            21:                             // inner addmulx4 loop (top)
                 mov (%rsi), %rax
                 mulq %rbx
-                add %rax, (%rdi)
+                add %r11, %rax
                 adc $$0, %rdx
                 mov %rdx, %r11
+                add %rax, (%rdi)
+                adc $$0, %r11
 
-                add $$8, %rsi
-                add $$8, %rdi
-                dec %rcx
-                jz 2f
-            1:                              // inner addmul loop top (rcx)
+                mov 8(%rsi), %rax
+                mulq %rbx
+                add %r11, %rax
+                adc $$0, %rdx
+                mov %rdx, %r11
+                add %rax, 8(%rdi)
+                adc $$0, %r11
+
+                mov 16(%rsi), %rax
+                mulq %rbx
+                add %r11, %rax
+                adc $$0, %rdx
+                mov %rdx, %r11
+                add %rax, 16(%rdi)
+                adc $$0, %r11
+
+                mov 24(%rsi), %rax
+                mulq %rbx
+                add %r11, %rax
+                adc $$0, %rdx
+                mov %rdx, %r11
+                add %rax, 24(%rdi)
+                adc $$0, %r11
+
+                add $$32, %rsi
+                add $$32, %rdi
+                sub $$4, %rcx
+
+                test $$0xfffffffffffffffc, %rcx
+                jnz 21b                     // end of addmulx4 loop
+
+            24:
+                test %rcx, %rcx
+                jz 26f
+            25:                             // inner addmul loop top (rcx)
                 mov (%rsi), %rax
                 mulq %rbx
                 add %r11, %rax
@@ -109,8 +144,8 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
                 add $$8, %rsi
                 add $$8, %rdi
                 dec %rcx
-                jnz 1b                      // end of addmul loop
-            2:
+                jnz 25b                     // end of addmul loop
+            26:
                 mov %r11, (%rdi)            // overwrite final word, no add
 
                 movq %r8, %rax              // reset %rsi and %rdi
@@ -121,8 +156,8 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
                 addq $$8, %rdi              // offset rdi
                 addq $$8, %r10              // offset r10
                 dec %r9
-                jnz 4b
-            6:
+                jnz 20b
+            3:
         "
         : "=&{rdi}"(w), "=&{rsi}"(x), "=&{r8}"(xs), "=&{r10}"(y), "=&{r9}"(ys)
         : "0"(w), "1"(x), "2"(xs), "3"(y), "4"(ys)

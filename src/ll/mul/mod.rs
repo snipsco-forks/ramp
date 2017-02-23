@@ -25,8 +25,10 @@ use ll::limb_ptr::{Limbs, LimbsMut};
 
 pub mod addmul_1;
 pub mod mul_1;
+pub mod basecase;
 pub use self::addmul_1::addmul_1;
 pub use self::mul_1::mul_1;
+pub use self::basecase::mul_basecase;
 
 const TOOM22_THRESHOLD : i32 = 20;
 
@@ -106,22 +108,6 @@ pub unsafe fn mul(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
         } else {
             mul_toom22(wp, xp, xs, yp, ys, scratch);
         }
-    }
-}
-
-pub unsafe fn mul_basecase(mut wp: LimbsMut, xp: Limbs, xs: i32, mut yp: Limbs, mut ys: i32) {
-
-    *wp.offset(xs as isize) = ll::mul_1(wp, xp, xs, *yp);
-    wp = wp.offset(1);
-    yp = yp.offset(1);
-    ys -= 1;
-
-    while ys > 0 {
-        *wp.offset(xs as isize) = ll::addmul_1(wp, xp, xs, *yp);
-
-        wp = wp.offset(1);
-        yp = yp.offset(1);
-        ys -= 1;
     }
 }
 
@@ -409,36 +395,4 @@ unsafe fn sqr_toom2(wp: LimbsMut, xp: Limbs, xs: i32, scratch: LimbsMut) {
     cy = cy + ll::add_n(wp.offset(xl as isize), wp.offset(xl as isize).as_const(), z1.as_const(), xs);
 
     ll::incr(wp.offset((xl + xs) as isize), cy);
-}
-
-#[cfg(test)]
-mod test {
-
-    #[test]
-    fn test_mul_basecase() {
-        use ll::limb_ptr::{Limbs, LimbsMut};
-        unsafe {
-            for &(x, y, exp) in &[
-                (&[0usize, 0] as &[usize], &[0usize, 0] as &[usize], &[0usize, 0, 0, 0] as &[usize]),
-                (&[1, 0], &[1, 0], &[1usize, 0, 0, 0]),
-                (&[!0, !0], &[1, 0], &[!0, !0, 0, 0]),
-                (&[!0, !0], &[!0, !0], &[1, 0, !0-1, !0]),
-                (&[!0, !0, !0], &[!0, !0, !0], &[1, 0, 0, !0-1, !0, !0]),
-                (&[1], &[1, 2, 3], &[1, 2, 3, 0]),
-                (&[1], &[1, 2, 3, 4], &[1, 2, 3, 4, 0]),
-                (&[0, 2], &[1, 2, 3, 4], &[0, 2, 4, 6, 8, 0]),
-            ] {
-                let x_vec = x.to_vec();
-                let y_vec = y.to_vec();
-                let w_vec = vec!(0usize; x.len()+y.len());
-                let x_limbs = Limbs::new(x_vec.as_ptr() as _, 0, x.len() as i32);
-                let y_limbs = Limbs::new(y_vec.as_ptr() as _, 0, y.len() as i32);
-                let w_limbs = LimbsMut::new(w_vec.as_ptr() as _, 0, w_vec.len() as i32);
-                super::mul_basecase(w_limbs, x_limbs, x.len() as _, y_limbs, y.len() as _);
-                assert_eq!(exp, &*w_vec,
-                           "wrong result testing {:?}*{:?}={:?} ", x, y, w_vec);
-            }
-        }
-    }
-
 }

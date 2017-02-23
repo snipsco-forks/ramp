@@ -89,37 +89,38 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
 
                 test $$0xfffffffffffffffc, %rcx
                 jz 24f
+            .align 4
             21:                             // inner addmulx4 loop (top)
                 mov (%rsi), %rax
                 mulq %rbx
-                add %r11, %rax
-                adc $$0, %rdx
-                mov %rdx, %r11
-                add %rax, (%rdi)
-                adc $$0, %r11
+                mov %rdx, %r12
+                add %rax, %r11
+                adc $$0, %r12
+                add %r11, (%rdi)
+                adc $$0, %r12
 
                 mov 8(%rsi), %rax
                 mulq %rbx
-                add %r11, %rax
-                adc $$0, %rdx
-                mov %rdx, %r11
-                add %rax, 8(%rdi)
-                adc $$0, %r11
+                mov %rdx, %r13
+                add %rax, %r12
+                adc $$0, %r13
+                add %r12, 8(%rdi)
+                adc $$0, %r13
 
                 mov 16(%rsi), %rax
                 mulq %rbx
-                add %r11, %rax
-                adc $$0, %rdx
-                mov %rdx, %r11
-                add %rax, 16(%rdi)
-                adc $$0, %r11
+                mov %rdx, %r14
+                add %rax, %r13
+                adc $$0, %r14
+                add %r13, 16(%rdi)
+                adc $$0, %r14
 
                 mov 24(%rsi), %rax
                 mulq %rbx
-                add %r11, %rax
-                adc $$0, %rdx
                 mov %rdx, %r11
-                add %rax, 24(%rdi)
+                add %rax, %r14
+                adc $$0, %r11
+                add %r14, 24(%rdi)
                 adc $$0, %r11
 
                 add $$32, %rsi
@@ -161,7 +162,8 @@ pub unsafe fn asm_x86_64(wp: LimbsMut, xp: Limbs, xs: i32, yp: Limbs, ys: i32) {
         "
         : "=&{rdi}"(w), "=&{rsi}"(x), "=&{r8}"(xs), "=&{r10}"(y), "=&{r9}"(ys)
         : "0"(w), "1"(x), "2"(xs), "3"(y), "4"(ys)
-        :   "rax", "rcx", "rdx", "rbx", "r11",
+        :   "rax", "rcx", "rdx", "rbx",
+            "r11", "r12", "r13", "r14", "r15"
             "cc", "memory"
     );
 }

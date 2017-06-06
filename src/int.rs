@@ -141,7 +141,7 @@ impl Int {
     pub fn from_single_limb(limb: Limb) -> Int {
         let mut i = Int::with_capacity(1);
         unsafe {
-            *i.ptr.get_mut() = limb;
+            *i.ptr.as_ptr() = limb;
         }
         i.size = 1;
 
@@ -155,7 +155,7 @@ impl Int {
     fn with_raw_vec<F: FnOnce(&mut RawVec<Limb>)>(&mut self, f: F) {
         unsafe {
             let old_cap = self.cap as usize;
-            let mut vec = RawVec::from_raw_parts(self.ptr.get_mut(), old_cap);
+            let mut vec = RawVec::from_raw_parts(self.ptr.as_ptr(), old_cap);
             // if `f` panics, let `vec` do the cleaning up, not self.
             self.cap = 0;
 
@@ -221,7 +221,7 @@ impl Int {
         if self.sign() == 0 {
             return Limb(0);
         } else {
-            return unsafe { *self.ptr.get() };
+            return unsafe { *self.ptr.as_ref() };
         }
     }
 
@@ -628,7 +628,7 @@ impl Int {
             std::usize::MAX
         } else {
             let bytes = unsafe {
-                std::slice::from_raw_parts(self.ptr.get() as *const _ as *const u8,
+                std::slice::from_raw_parts(self.ptr.as_ref() as *const _ as *const u8,
                                            self.abs_size() as usize * std::mem::size_of::<Limb>())
             };
             hamming::weight(bytes) as usize
@@ -737,18 +737,18 @@ impl Int {
     // get a Limbs to all limbs currently initialised/in use
     fn limbs(&self) -> Limbs {
         unsafe {
-            Limbs::new(self.ptr.get(), 0, self.abs_size())
+            Limbs::new(self.ptr.as_ref(), 0, self.abs_size())
         }
     }
     // get a LimbsMut to all limbs currently initialised/in use
     fn limbs_mut(&mut self) -> LimbsMut {
         unsafe {
-            LimbsMut::new(self.ptr.get_mut(), 0, self.abs_size())
+            LimbsMut::new(self.ptr.as_ptr(), 0, self.abs_size())
         }
     }
     // get a LimbsMut to all allocated limbs
     unsafe fn limbs_uninit(&mut self) -> LimbsMut {
-        LimbsMut::new(self.ptr.get_mut(), 0, self.cap as i32)
+        LimbsMut::new(self.ptr.as_ptr(), 0, self.cap as i32)
     }
 
     fn ensure_capacity(&mut self, cap: u32) {
@@ -784,7 +784,7 @@ impl Int {
         let sign = self.sign();
         unsafe {
             while self.size != 0 &&
-                *self.ptr.offset((self.abs_size() - 1) as isize) == 0 {
+                *self.ptr.as_ptr().offset((self.abs_size() - 1) as isize) == 0 {
 
                 self.size -= sign;
             }
@@ -804,7 +804,7 @@ impl Int {
         }
 
         let high_limb = unsafe {
-            *self.ptr.offset((self.abs_size() - 1) as isize)
+            *self.ptr.as_ptr().offset((self.abs_size() - 1) as isize)
         };
 
         return high_limb != 0;
@@ -976,7 +976,7 @@ impl Drop for Int {
     fn drop(&mut self) {
         if self.cap > 0 {
             unsafe {
-                drop(RawVec::from_raw_parts(self.ptr.get_mut(),
+                drop(RawVec::from_raw_parts(self.ptr.as_ptr(),
                                             self.cap as usize));
             }
             self.cap = 0;
@@ -3562,7 +3562,7 @@ macro_rules! impl_from_for_prim (
                     // Handle conversion where BaseInt = u32 and $t = i64
                     if i.abs_size() >= 2 { // Fallthrough if there's only one limb
                         let lower = i.to_single_limb().0 as $t;
-                        let higher = unsafe { (*i.ptr.offset(1)).0 } as $t;
+                        let higher = unsafe { (*i.ptr.as_ptr().offset(1)).0 } as $t;
 
                         // Combine the two
                         let n : $t = lower | higher.overflowing_shl(Limb::BITS as u32).0;
@@ -3590,7 +3590,7 @@ macro_rules! impl_from_for_prim (
                     // Handle conversion where BaseInt = u32 and $t = u64
                     if i.abs_size() >= 2 { // Fallthrough if there's only one limb
                         let lower = i.to_single_limb().0 as $t;
-                        let higher = unsafe { (*i.ptr.offset(1)).0 } as $t;
+                        let higher = unsafe { (*i.ptr.as_ptr().offset(1)).0 } as $t;
 
                         // Combine the two
                         let n : $t = lower | higher.overflowing_shl(Limb::BITS as u32).0;

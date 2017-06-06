@@ -221,7 +221,7 @@ impl Int {
         if self.sign() == 0 {
             return Limb(0);
         } else {
-            return unsafe { *self.ptr.get() };
+            return unsafe { *self.ptr.as_ref() };
         }
     }
 
@@ -628,7 +628,7 @@ impl Int {
             std::usize::MAX
         } else {
             let bytes = unsafe {
-                std::slice::from_raw_parts(self.ptr.get() as *const _ as *const u8,
+                std::slice::from_raw_parts(self.ptr.as_ref() as *const _ as *const u8,
                                            self.abs_size() as usize * std::mem::size_of::<Limb>())
             };
             hamming::weight(bytes) as usize
@@ -737,7 +737,7 @@ impl Int {
     // get a Limbs to all limbs currently initialised/in use
     fn limbs(&self) -> Limbs {
         unsafe {
-            Limbs::new(self.ptr.get(), 0, self.abs_size())
+            Limbs::new(self.ptr.as_ref(), 0, self.abs_size())
         }
     }
     // get a LimbsMut to all limbs currently initialised/in use
